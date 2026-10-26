@@ -25,6 +25,7 @@ Run lint and typecheck before declaring any task done.
 
 ## Navigation & Routing
 
+- AEM note (26 Oct 2026): this app deliberately uses plain state tabs in App.tsx (not Expo Router) so the same tree runs in the Electron shell; revisit if navigation grows.
 - Use **Expo Router** for all navigation. Routes live in `src/app/` — every file there is a screen, `_layout.tsx` files define navigators. Keep non-route code (components, hooks, utils) outside `src/app/`.
 - Import `Link`, `router`, and `useLocalSearchParams` from `expo-router`.
 - Docs: https://docs.expo.dev/router/introduction.md

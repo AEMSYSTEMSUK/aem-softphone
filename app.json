@@ -1,13 +1,22 @@
 {
   "expo": {
-    "name": "aem-softphone",
+    "name": "AEM Phone",
     "slug": "aem-softphone",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "uk.co.aemsystems.phone",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "AEM Phone uses the microphone for calls.",
+        "NSContactsUsageDescription": "AEM Phone searches your contacts so you can call them.",
+        "UIBackgroundModes": [
+          "audio",
+          "voip"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +25,28 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "uk.co.aemsystems.phone",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_CONTACTS",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-audio",
+      "expo-contacts",
+      "@config-plugins/react-native-webrtc"
+    ],
+    "scheme": "aemsoftphone",
+    "extra": {
+      "apiBase": "https://one.aemtech.co.uk/api"
     }
   }
 }
