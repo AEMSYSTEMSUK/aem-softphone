@@ -1,17 +1,17 @@
 {
   "expo": {
-    "name": "AEM Phone",
-    "slug": "aem-softphone",
+    "name": "The One MSP Phone",
+    "slug": "theonemsp-phone",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "uk.co.aemsystems.phone",
+      "bundleIdentifier": "uk.co.aemsystems.theonemspphone",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "AEM Phone uses the microphone for calls.",
-        "NSContactsUsageDescription": "AEM Phone searches your contacts so you can call them.",
+        "NSMicrophoneUsageDescription": "The One MSP Phone uses the microphone for calls.",
+        "NSContactsUsageDescription": "The One MSP Phone searches your contacts so you can call them.",
         "UIBackgroundModes": [
           "audio",
           "voip"
@@ -26,7 +26,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "uk.co.aemsystems.phone",
+      "package": "uk.co.aemsystems.theonemspphone",
       "permissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_CONTACTS",
@@ -44,7 +44,7 @@
       "expo-contacts",
       "@config-plugins/react-native-webrtc"
     ],
-    "scheme": "aemsoftphone",
+    "scheme": "theonemspphone",
     "extra": {
       "apiBase": "https://one.aemtech.co.uk/api"
     }

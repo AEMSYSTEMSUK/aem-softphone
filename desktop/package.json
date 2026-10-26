@@ -1,8 +1,9 @@
 {
-  "name": "aem-phone-desktop",
+  "name": "theonemsp-phone-desktop",
+  "productName": "The One MSP Phone",
   "version": "0.1.0",
   "private": true,
-  "description": "AEM Phone desktop shell (Electron) - stub, loads ../dist (web export of the app)",
+  "description": "The One MSP Phone desktop shell (Electron) - stub, loads ../dist (web export of the app)",
   "main": "main.js",
   "scripts": {
     "start": "electron ."

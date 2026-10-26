@@ -2,15 +2,20 @@ import React, { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as api from '../api/client';
-import { SSO_RETURN_URL } from '../config';
+import { APP_NAME, APP_SCHEME, SSO_RETURN_URL } from '../config';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
 
-// Spec decision 3: ONE login - Microsoft (Entra SSO) for M365 users, or the app password AEM gives non-M365 users.
+// Spec decision 3: ONE login - Microsoft (any Microsoft 365 work account: AEM staff or a customer's, through ONE's
+// multi-tenant partner app) or the app password AEM gives people without Microsoft 365.
 const SSO_ERRORS: Record<string, string> = {
   no_account: 'There is no phone login for that Microsoft account - ask AEM to add you.',
   inactive: 'Your phone login is switched off - ask AEM.',
   not_configured: 'Microsoft sign-in is not set up on ONE yet - use your app password.',
+  tenant_not_allowed: "Your organisation's Microsoft 365 isn't linked to AEM - use your app password.",
+  wrong_tenant: 'That Microsoft account belongs to a different organisation than your phone login - ask AEM.',
+  consent_required: "Your organisation hasn't approved AEM's sign-in app yet - ask AEM, or use your app password.",
+  cancelled: 'Microsoft sign-in was cancelled',
 };
 
 export default function LoginScreen() {
@@ -28,7 +33,7 @@ export default function LoginScreen() {
   const microsoft = () => withBusy(async () => {
     const r = await WebBrowser.openAuthSessionAsync(api.microsoftStartUrl(), SSO_RETURN_URL);
     if (r.type !== 'success') throw new Error('Microsoft sign-in was cancelled');
-    const q = new URL(r.url.replace(/^aemsoftphone:\/\//, 'https://app/')).searchParams;
+    const q = new URL(r.url.replace(`${APP_SCHEME}://`, 'https://app/')).searchParams;
     const code = q.get('code');
     if (!code) throw new Error(SSO_ERRORS[q.get('error') || ''] || `Microsoft sign-in failed (${q.get('error') || 'no code'})`);
     await api.exchangeSsoCode(code);
@@ -37,7 +42,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={[s.screen, { justifyContent: 'center' }]}>
       <View style={[s.pad, { maxWidth: 420, width: '100%', alignSelf: 'center' }]}>
-        <Text style={[s.h1, { color: colors.brand, marginBottom: 4 }]}>AEM Phone</Text>
+        <Text style={[s.h1, { color: colors.brand, marginBottom: 4 }]}>{APP_NAME}</Text>
         <Text style={[s.muted, { marginBottom: 24 }]}>Sign in with your ONE phone login.</Text>
 
         <TouchableOpacity style={s.btn} onPress={microsoft} disabled={busy} accessibilityRole="button">

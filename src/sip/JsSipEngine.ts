@@ -45,7 +45,7 @@ export class JsSipEngine implements SipEngine {
       register: true,
       register_expires: 300,
       session_timers: false,
-      user_agent: `AEM Phone (${Platform.OS})`,
+      user_agent: `TheOneMSPPhone (${Platform.OS})`,
     });
     ua.on('connecting', () => this.setReg(a.accountId, 'registering'));
     ua.on('registered', () => this.setReg(a.accountId, 'registered'));

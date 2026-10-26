@@ -1,6 +1,9 @@
-# AEM Phone (#230) - softphone app, milestone 1
+# The One MSP Phone (#230) - softphone app, milestone 1
 
-AEM's own calling app for hosted-phone customers and staff, on iPhone, Android and desktop. Spec:
+App IDs: iOS bundle / Android package `uk.co.aemsystems.theonemspphone`, deep-link scheme `theonemspphone://`
+(Microsoft sign-in comes back on `theonemspphone://sso`). Named 26 Oct 2026 (was "AEM Phone" in the first skeleton).
+
+AEM's own calling app ("The One MSP Phone") for hosted-phone customers and staff, on iPhone, Android and desktop. Spec:
 `OneDrive - AEM SYSTEMS\Documents\AEM\AEM-230-Softphone-App-Spec.md` (v0.2, all decisions agreed 26 Oct 2026).
 
 **Status (26 Oct 2026): skeleton.** Every screen works against ONE's new `/api/softphone` API. Real calling code is
@@ -8,14 +11,14 @@ written (JsSIP + WebRTC), but it has **not been tested against voip1**, because 
 template yet (milestone 2). Expo Go has no WebRTC, so there the app falls back to simulated calls and says so on the
 Accounts screen.
 
-Local git only (branch `main`). **No remote yet.** Andy decides where it goes (AEMSYSTEMSUK/aem-softphone private is
-the obvious choice, mirroring the agent).
+Git: `origin` = https://github.com/AEMSYSTEMSUK/aem-softphone (private), branch `main`. Code only - never secrets,
+`.env` files or signing keys.
 
 ## Architecture
 
 ```
  App (React Native / Expo SDK 58, TypeScript)            ONE backend (aem-crm/backend, /api/softphone/*)
-   Login (Microsoft or app password)  ── HTTPS ────────►  auth/login, auth/refresh, auth/microsoft, auth/sso/exchange
+   Login (Microsoft or app password)  ── HTTPS ────────►  auth/login, auth/refresh, auth/microsoft(+/callback), auth/sso/exchange
    Accounts / DND / hours             ── HTTPS ────────►  me, dnd, settings          (state lives in ONE)
    Contacts / Recents / Voicemail     ── HTTPS ────────►  contacts, caller, history, voicemail(+audio)
    SIP layer (src/sip)                ── HTTPS ────────►  sip  (SIP logins of <key><ext>-app lines, TURN creds)
@@ -33,6 +36,13 @@ the obvious choice, mirroring the agent).
   come from ONE after sign-in. ONE reads them from voip1 and caches them AES-GCM encrypted. TURN credentials are
   12-hour HMAC credentials, minted from the coturn shared secret.
 - Revoking a lost phone in ONE stops it on its next request. Access tokens last 1 hour, and refresh tokens rotate.
+- **Microsoft sign-in works for customers' Microsoft 365 users too, not just AEM staff.** It uses ONE's multi-tenant
+  partner app "AEM Portal Sign-In (SSO)" (c92ea121, already admin-consented in the client tenants) with the
+  `/organizations` authority, not ONE's single-tenant staff login app. ONE's callback is
+  `https://one.aemtech.co.uk/api/softphone/auth/microsoft/callback` (registered on c92ea121 in Entra). ONE only lets
+  someone in if the token's tenant is AEM's or a customer tenant in `m365_tenants` (not offboarded), and the person
+  already has a phone login (matched by Entra object id, else email / UPN). Staff logins work only from AEM's tenant,
+  customer logins only from their own company's tenant. Microsoft sign-in never creates logins.
 
 ### Folder map
 
@@ -77,7 +87,7 @@ for iOS, the Apple Developer enrolment. Nothing has been built or uploaded yet.
 ONE's address comes from `app.json` -> `expo.extra.apiBase` (default `https://one.aemtech.co.uk/api`).
 
 Desktop stub: `npm run export:web`, then `cd desktop && npm install && npm start`. Electron is not installed in this
-repo yet. Alternatively, set `AEM_PHONE_DEV_URL=http://localhost:8081` while `npx expo start --web` runs.
+repo yet. Alternatively, set `ONEMSP_PHONE_DEV_URL=http://localhost:8081` while `npx expo start --web` runs.
 
 ## What's stubbed / not done (and why)
 
@@ -87,11 +97,11 @@ repo yet. Alternatively, set `AEM_PHONE_DEV_URL=http://localhost:8081` while `np
 | Calls in Expo Go | Simulated (StubSipEngine) | react-native-webrtc is native; needs an EAS dev build |
 | Ringing on a locked phone | Not started | Needs PushKit + CallKit (iOS) and FCM + ConnectionService (Android). Blocked on the Apple Developer enrolment |
 | Company logo per account | `logoUrl` is always null | ONE's Client has no logo field yet |
-| Microsoft sign-in on desktop/web | Mobile only | The return URL is `aemsoftphone://sso`. Electron needs the protocol registered (milestone 2) |
+| Microsoft sign-in on desktop/web | Mobile only | The return URL is `theonemspphone://sso`. Electron needs the protocol registered (milestone 2) |
 | Desktop app | Stub that loads the web export | Spec: mobile first. Electron is the next milestone |
 | Transfer, 3-way, park, Move to... | Not started | Milestone 2/3 |
 | Presence of colleagues | Not started | Needs a presence feed from voip1 |
-| ONE GUI for phone logins | API only (`/api/softphone/admin/*`) | Frontend page is the next step (super admins) |
+| ONE GUI for phone logins | **Done** - ONE > IT & Devices > Phone app (`/admin/phones/app`, super admins) | Settings, logins (linked to staff / portal person / M365 person), app password shown once, company lines, device sign-out |
 
 ## Milestone 2 plan
 
@@ -100,8 +110,7 @@ repo yet. Alternatively, set `AEM_PHONE_DEV_URL=http://localhost:8081` while `np
    `lines: N` DECT). A `cust-routing` gosub that calls ONE `/api/softphone/ring/<endpoint>` (X-Voip-Key) before dialling
    the app leg, and adds `X-AEM-Company` / `X-AEM-DID` / `X-AEM-Caller` headers. Open coturn 3478/5349 (+ the
    Fasthosts cloud firewall). Verify WSS on 443/8089.
-2. **ONE GUI:** a "Phone app" page (super admin) for logins, app passwords (shown once), company accounts, device
-   revoke, and softphone config (WSS URL, SIP domain, STUN/TURN URLs, TURN secret).
+2. ~~ONE GUI~~ - done 26 Oct (ONE > Phone app).
 3. **Push / VoIP notifications:** iOS PushKit VoIP push + CallKit, and Android FCM high-priority + ConnectionService /
    full-screen intent. ONE becomes the push relay. Device push tokens are already stored (`PUT /api/softphone/device/push`).
    **Blocked on Apple Developer Program enrolment** (D-U-N-S 231075307; andy@ enrolment under review, apple@ is the
