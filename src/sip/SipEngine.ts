@@ -43,8 +43,18 @@ export interface SipEngine {
   readonly kind: 'jssip' | 'stub';
   /** Human-readable reason when this is the stub (shown on the accounts screen). */
   readonly note: string | null;
+  /** Idempotent (3 Nov 2026): accounts whose login didn't change keep their registration and any call in progress. */
   start(cfg: EngineConfig): Promise<void>;
   stop(): Promise<void>;
+  /** Push mode: unregister every line while the app is in the background (the PBX then wakes it by push instead of
+   *  sending an INVITE to a socket the phone has frozen). Refused (false) while a call is in progress. */
+  pause(): Promise<boolean>;
+  /** Register again from the last config (after pause, or a push woke the app). False = no config yet. */
+  resume(): Promise<boolean>;
+  isConfigured(): boolean;
+  liveCalls(): CallInfo[];
+  /** Blind transfer (SIP REFER) to an extension or number - the PBX takes the call over. */
+  transfer(callId: string, target: string): void;
   registrations(): Record<number, RegState>;
   call(accountId: number, number: string): Promise<string>;
   answer(callId: string): void;

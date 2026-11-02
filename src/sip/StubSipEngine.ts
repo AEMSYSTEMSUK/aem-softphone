@@ -26,6 +26,11 @@ export class StubSipEngine implements SipEngine {
     for (const c of this.calls.values()) this.update(c.id, { state: 'ended', endReason: 'signed out' });
   }
 
+  async pause() { if (this.calls.size) return false; for (const id of Object.keys(this.regs)) this.regs[Number(id)] = 'unregistered'; return true; }
+  async resume() { if (!this.accounts.length) return false; await this.start({ wssUrl: '', sipDomain: '', iceServers: [], accounts: this.accounts }); return true; }
+  isConfigured() { return this.accounts.length > 0; }
+  liveCalls() { return [...this.calls.values()]; }
+  transfer(id: string) { this.update(id, { state: 'ended', endReason: 'transferred' }); }
   registrations() { return { ...this.regs }; }
 
   private update(id: string, patch: Partial<CallInfo>) {

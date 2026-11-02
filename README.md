@@ -36,6 +36,27 @@ app `uk.co.aemsystems.theonemspphone` -> download google-services.json -> repo s
 account key -> ONE Phone app page; (3) run the Android APK workflow, install the APK, sign in, "Test ring"; (4) apply
 the voip1 script; (5) iPhone: after the Apple Developer enrolment, APNs key (.p8) into ONE, then `eas build -p ios`.
 
+## 3 Nov 2026 (overnight): ready for an Android pilot (Big Property Sale)
+
+- **Headless wake (Android).** `src/state/phoneCore.ts` owns the one SIP engine for the app process. A push that starts
+  the app's JS headless (phone locked, app swiped away) now signs the lines in straight away from the keychain token, so
+  voip1's INVITE arrives while the lock screen is still ringing; Answer there answers the real call. Before, the lines
+  only registered once the person had pressed Answer and the UI had loaded - usually after voip1 had given up.
+- **Push mode.** Once the phone can be woken by push, the lines unregister when the app goes to the background and no
+  call is in progress, and register again when it comes to the front. voip1 then sees "no registration", pushes and waits
+  for the app, instead of sending the INVITE to a socket a sleeping phone isn't reading. Without push (no Firebase in the
+  build) nothing changes: the app stays registered as before.
+- **Engine start is idempotent**: a line whose login didn't change keeps its registration and call (the UI loading after
+  a headless wake no longer tears the ringing call down). `pause()` / `resume()` / `liveCalls()` added to `SipEngine`.
+- **Declined on the lock screen** before the INVITE arrived: that INVITE is rejected when it comes (not rung in the app).
+- **Blind transfer** on the call screen (Transfer -> type 201 or a number). SIP REFER; voip1 routes it in the line's own
+  context, like a desk phone's Transfer key. **Untested on voip1** - check the -app endpoints allow transfer and that
+  the context reaches colleagues' extensions.
+- voip1 wait for a woken app raised to 20 s (backend `ops/voip1/app-push/cust-app-push.py`, still not applied). App-only
+  people need a ring step of 35 s+ in ONE's call routing, because the wait counts inside the step.
+- Still not done: speakerphone / Bluetooth route button, attended transfer, "Move to my other device", iPhone (waits on
+  the Apple Developer account), desktop.
+
 ## Architecture
 
 ```
@@ -121,7 +142,7 @@ repo yet. Alternatively, set `ONEMSP_PHONE_DEV_URL=http://localhost:8081` while 
 | Company logo per account | `logoUrl` is always null | ONE's Client has no logo field yet |
 | Microsoft sign-in on desktop/web | Mobile only | The return URL is `theonemspphone://sso`. Electron needs the protocol registered (milestone 2) |
 | Desktop app | Stub that loads the web export | Spec: mobile first. Electron is the next milestone |
-| Transfer, 3-way, park, Move to... | Not started | Milestone 2/3 |
+| Transfer | Blind transfer built 3 Nov (untested on voip1); attended, 3-way, park, Move to... not started | Milestone 3 |
 | Presence of colleagues | Not started | Needs a presence feed from voip1 |
 | ONE GUI for phone logins | **Done** - ONE > IT & Devices > Phone app (`/admin/phones/app`, super admins) | Settings, logins (linked to staff / portal person / M365 person), app password shown once, company lines, device sign-out |
 

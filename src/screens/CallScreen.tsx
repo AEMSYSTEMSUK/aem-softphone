@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as api from '../api/client';
-import type { CallInfo } from '../sip';
+import { cleanDialString, type CallInfo } from '../sip';
 import { colors } from '../components/theme';
 import { useApp } from '../state/AppContext';
 
@@ -23,6 +23,7 @@ export default function CallScreen() {
   const [now, setNow] = useState(Date.now());
   const [lookedUp, setLookedUp] = useState<Record<string, string | null>>({});
   const [keypad, setKeypad] = useState(false);
+  const [xfer, setXfer] = useState<string | null>(null); // transfer target being typed (null = closed)
 
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   // No caller name from voip1's header? Ask ONE (phone book / customers).
@@ -57,6 +58,24 @@ export default function CallScreen() {
           </View>
         )}
 
+        {xfer !== null && !ringingIn && (
+          <View style={{ width: 300, alignItems: 'center' }}>
+            <Text style={{ color: '#cfe0f5', marginBottom: 8 }}>Transfer to an extension (e.g. 201) or a number</Text>
+            <TextInput value={xfer} onChangeText={setXfer} keyboardType="phone-pad" autoFocus placeholder="201"
+              placeholderTextColor="#9fb3cc" accessibilityLabel="Transfer to"
+              style={{ width: 220, fontSize: 24, color: '#fff', borderBottomWidth: 1, borderBottomColor: '#cfe0f5', textAlign: 'center', paddingVertical: 6 }} />
+            <View style={{ flexDirection: 'row', marginTop: 6 }}>
+              <Btn label="Cancel" onPress={() => setXfer(null)} />
+              <Btn label="Transfer" color={colors.green} text="#fff" onPress={() => {
+                const t = cleanDialString(xfer);
+                if (!t) return;
+                engine.transfer(call.id, t);
+                setXfer(null);
+              }} />
+            </View>
+          </View>
+        )}
+
         {ringingIn ? (
           <View style={{ flexDirection: 'row' }}>
             <Btn label="Decline" color={colors.red} text="#fff" onPress={() => engine.hangup(call.id)} />
@@ -67,10 +86,13 @@ export default function CallScreen() {
             <View style={{ flexDirection: 'row' }}>
               <Btn label={call.muted ? 'Unmute' : 'Mute'} onPress={() => engine.setMuted(call.id, !call.muted)} />
               <Btn label={call.held ? 'Resume' : 'Hold'} onPress={() => engine.setHeld(call.id, !call.held)} />
-              <Btn label="Keypad" onPress={() => setKeypad((k) => !k)} />
+              <Btn label="Keypad" onPress={() => { setXfer(null); setKeypad((k) => !k); }} />
             </View>
-            <Btn label="End" color={colors.red} text="#fff" onPress={() => engine.hangup(call.id)} />
-            <Text style={{ color: '#cfe0f5', fontSize: 12, marginTop: 6 }}>Transfer, Move to my other device: next milestone</Text>
+            <View style={{ flexDirection: 'row' }}>
+              <Btn label="Transfer" onPress={() => { setKeypad(false); setXfer((x) => (x === null ? '' : null)); }} />
+              <Btn label="End" color={colors.red} text="#fff" onPress={() => engine.hangup(call.id)} />
+            </View>
+            {call.endReason === 'transfer failed' && <Text style={{ color: '#ffd2d2', marginTop: 6 }}>Transfer failed - the call is still with you</Text>}
           </View>
         )}
       </View>

@@ -1,8 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import * as api from '../api/client';
 import type { Me, SipConfig } from '../api/types';
-import { CallInfo, createSipEngine, RegState, SipEngine } from '../sip';
+import { CallInfo, RegState, SipEngine } from '../sip';
 import * as push from '../push';
+import * as core from './phoneCore';
 
 // App-wide state: who's signed in (ONE), their company accounts, the SIP engine and its registrations / calls.
 
@@ -27,32 +29,24 @@ interface Ctx {
 const AppCtx = createContext<Ctx | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const engineRef = useRef<SipEngine>(createSipEngine());
+  // One engine for the whole app process (phoneCore) - a push may already have started it headless before this UI loaded.
+  const engineRef = useRef<SipEngine>(core.getEngine());
   const engine = engineRef.current;
   const [phase, setPhase] = useState<Phase>('starting');
   const [me, setMe] = useState<Me | null>(null);
   const [sip, setSip] = useState<SipConfig | null>(null);
-  const [regs, setRegs] = useState<Record<number, RegState>>({});
-  const [calls, setCalls] = useState<CallInfo[]>([]);
+  const [regs, setRegs] = useState<Record<number, RegState>>(() => engine.registrations());
+  const [calls, setCalls] = useState<CallInfo[]>(() => engine.liveCalls()); // e.g. answered on the lock screen
   const [currentAccountId, setCurrentAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const regsRef = useRef<Record<number, RegState>>({});
+  const regsRef = useRef<Record<number, RegState>>(engine.registrations());
   const phaseRef = useRef<Phase>('starting');
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   useEffect(() => engine.on((e) => {
     if (e.type === 'registration') { regsRef.current = { ...regsRef.current, [e.accountId]: e.state }; setRegs(regsRef.current); return; }
-    const c = e.call;
-    // Milestone 2: tie SIP calls to the phone's system call screen (CallKit / Android Telecom) that a push put up.
-    if (c.direction === 'in' && c.state === 'ringing') {
-      const pc = push.callForSip(c.id) || push.claimForSip(c.accountId, c.id);
-      if (pc?.answered) engine.answer(c.id); // answered on the lock screen before the INVITE arrived
-    } else if (c.state === 'active') {
-      const pc = push.callForSip(c.id); if (pc) push.reportAnswered(pc);
-    } else if (c.state === 'ended') {
-      const pc = push.callForSip(c.id); if (pc) push.reportEnded(pc);
-    }
+    const c = e.call; // linking to the lock-screen call (push) is done in phoneCore, so it also works headless
     setCalls((cs) => (c.state === 'ended' ? cs.filter((x) => x.id !== c.id) : [...cs.filter((x) => x.id !== c.id), c]));
   }), [engine]);
 
@@ -64,30 +58,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setCurrentAccountId((cur) => (cur && m.accounts.some((a) => a.id === cur) ? cur : m.accounts[0]?.id ?? null));
       const s = await api.getSip(refreshSip);
       setSip(s);
-      const ready = s.accounts.filter((a) => a.ready && a.username && a.password);
-      await engine.start({
-        wssUrl: s.wssUrl, sipDomain: s.sipDomain, iceServers: s.iceServers,
-        accounts: ready.map((a) => ({ accountId: a.accountId, username: a.username as string, password: a.password as string, displayName: a.displayName, companyName: a.companyName })),
-      });
+      await core.applySipConfig(s);
       if (s.fetchError) setError(s.fetchError);
       // Milestone 2: tell ONE where to wake this phone (FCM token / Apple VoIP token). Errors here never block calling.
-      push.registerPushToken((kind, token) => api.savePushToken(kind, token), () => Object.values(regsRef.current).includes('registered')).catch(() => undefined);
+      push.registerPushToken((kind, token) => api.savePushToken(kind, token), core.anyRegistered).catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your accounts');
     }
   }, [engine]);
 
-  // Push from ONE: wake the SIP side if it is asleep, and carry lock-screen Answer / End / mute / keypad to the SIP call.
-  useEffect(() => push.onPushEvent((e) => {
-    const sipId = e.call.sipCallId;
-    if (e.type === 'incoming') {
-      const anyLive = Object.values(regsRef.current).includes('registered');
-      if (phaseRef.current === 'signed_in' && regsRef.current[e.call.accountId] !== 'registered' && !anyLive) reload().catch(() => undefined);
-    } else if (e.type === 'answer' && sipId) engine.answer(sipId);
-    else if (e.type === 'end' && sipId) engine.hangup(sipId);
-    else if (e.type === 'mute' && sipId) engine.setMuted(sipId, e.muted);
-    else if (e.type === 'dtmf' && sipId) engine.sendDtmf(sipId, e.digits);
-  }), [engine, reload]);
+  // Push mode (3 Nov 2026): background -> unregister once push works and nothing is in progress (phoneCore.sleepSoon);
+  // front -> register again. Lock-screen Answer / End etc. and push wake-ups are handled in phoneCore.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (phaseRef.current !== 'signed_in') return;
+      if (st === 'active') core.wake().catch(() => undefined);
+      else if (st === 'background') core.sleepSoon();
+    });
+    return () => sub.remove();
+  }, []);
 
   const signedIn = useCallback(async () => { setPhase('signed_in'); await reload(); }, [reload]);
 

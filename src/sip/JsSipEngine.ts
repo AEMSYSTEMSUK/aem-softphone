@@ -7,6 +7,8 @@ import { CallInfo, EngineConfig, Emitter, RegState, SipAccountConfig, SipEngine,
 // Real calling: JsSIP (MIT, maintained) over SIP-over-WebSocket to voip1 (Wazo / Asterisk PJSIP WSS transport), media by
 // WebRTC (react-native-webrtc on phones, Chromium in Electron). One JsSIP UA = one company account registration.
 // NOT exercised against voip1 yet: the -app endpoints + a WebRTC template on voip1 are milestone 2 (see README).
+// 3 Nov 2026: start() is idempotent (a push-woken engine keeps its ringing call when the app UI then loads), pause() /
+// resume() for push mode, transfer() (blind, SIP REFER).
 
 interface Live { session: RTCSession; info: CallInfo }
 
@@ -19,15 +21,51 @@ export class JsSipEngine implements SipEngine {
   readonly note = null;
   private ev = new Emitter();
   private uas = new Map<number, JsSIP.UA>();
+  private uaKeys = new Map<number, string>();
   private regs: Record<number, RegState> = {};
   private live = new Map<string, Live>();
   private cfg: EngineConfig | null = null;
 
-  async start(cfg: EngineConfig) {
-    await this.stop();
-    this.cfg = cfg;
-    for (const a of cfg.accounts) this.startUa(a);
+  private keyOf(a: SipAccountConfig, cfg: EngineConfig) { return [cfg.wssUrl, cfg.sipDomain, a.username, a.password, a.displayName].join('|'); }
+  private busy(accountId: number) { return [...this.live.values()].some((l) => l.info.accountId === accountId); }
+  private stopUa(accountId: number) {
+    const ua = this.uas.get(accountId);
+    if (ua) { try { ua.stop(); } catch { /* already stopped */ } }
+    this.uas.delete(accountId); this.uaKeys.delete(accountId);
+    this.setReg(accountId, 'unregistered');
   }
+
+  async start(cfg: EngineConfig) {
+    const prev = this.cfg;
+    this.cfg = cfg; // fresh TURN credentials apply to the next call
+    const want = new Map(cfg.accounts.map((a) => [a.accountId, a]));
+    for (const id of [...this.uas.keys()]) {
+      const a = want.get(id);
+      if (a && this.uaKeys.get(id) === this.keyOf(a, cfg)) continue; // same login: keep the registration (and its calls)
+      if (this.busy(id) && a && prev) continue; // login changed mid-call: swap it after the call (next start)
+      this.stopUa(id);
+    }
+    for (const a of cfg.accounts) {
+      const ua = this.uas.get(a.accountId);
+      if (!ua) this.startUa(a);
+      else if (!ua.isRegistered()) { try { ua.register(); } catch { /* reconnecting */ } }
+    }
+  }
+
+  async pause() {
+    if (this.live.size) return false;
+    for (const id of [...this.uas.keys()]) this.stopUa(id); // ua.stop() sends REGISTER Expires: 0 first
+    return true;
+  }
+
+  async resume() {
+    if (!this.cfg) return false;
+    await this.start(this.cfg);
+    return true;
+  }
+
+  isConfigured() { return !!this.cfg && this.cfg.accounts.length > 0; }
+  liveCalls() { return [...this.live.values()].map((l) => l.info); }
 
   private setReg(accountId: number, state: RegState, reason?: string) {
     this.regs[accountId] = state;
@@ -66,6 +104,7 @@ export class JsSipEngine implements SipEngine {
     });
     ua.start();
     this.uas.set(a.accountId, ua);
+    this.uaKeys.set(a.accountId, this.keyOf(a, cfg));
   }
 
   private update(id: string, patch: Partial<CallInfo>) {
@@ -106,7 +145,8 @@ export class JsSipEngine implements SipEngine {
   async stop() {
     for (const l of this.live.values()) { try { l.session.terminate(); } catch { /* already gone */ } }
     for (const [id, ua] of this.uas) { try { ua.stop(); } catch { /* ignore */ } this.regs[id] = 'unregistered'; }
-    this.uas.clear();
+    this.uas.clear(); this.uaKeys.clear();
+    this.cfg = null;
   }
 
   registrations() { return { ...this.regs }; }
@@ -126,5 +166,17 @@ export class JsSipEngine implements SipEngine {
   setMuted(id: string, muted: boolean) { const s = this.live.get(id)?.session; if (s) { if (muted) s.mute({ audio: true }); else s.unmute({ audio: true }); } }
   setHeld(id: string, held: boolean) { const s = this.live.get(id)?.session; if (s) { if (held) s.hold(); else s.unhold(); } }
   sendDtmf(id: string, digits: string) { this.live.get(id)?.session.sendDTMF(digits); }
+  // Blind transfer: REFER to <target>@<domain>. voip1 routes it in the caller's company context (like a desk phone's
+  // Transfer key), so an extension (201) or an outside number both work. Our leg ends when the PBX accepts it.
+  transfer(id: string, target: string) {
+    const l = this.live.get(id);
+    if (!l || !this.cfg) return;
+    l.session.refer(`sip:${target}@${this.cfg.sipDomain}`, {
+      eventHandlers: {
+        accepted: () => { try { l.session.terminate(); } catch { /* already gone */ } },
+        failed: () => this.update(id, { endReason: 'transfer failed' }),
+      },
+    });
+  }
   on(l: (e: SipEvent) => void) { return this.ev.on(l); }
 }

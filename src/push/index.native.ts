@@ -29,6 +29,14 @@ const emit = (e: PushEvent) => { for (const l of listeners) { try { l(e); } catc
 export function onPushEvent(l: (e: PushEvent) => void) { listeners.add(l); return () => { listeners.delete(l); }; }
 export const supported = true;
 
+// 3 Nov 2026: true once this phone can be woken by push (token saved in ONE, or a push has just arrived). Only then does
+// the app unregister its lines in the background (push mode) - without push it stays registered, as before.
+let ready = false;
+export const pushReady = () => ready;
+// Declined on the lock screen before the SIP INVITE arrived: reject that INVITE when it comes (account -> time).
+const declined = new Map<number, number>();
+export function wasDeclined(accountId: number) { const t = declined.get(accountId); return !!t && Date.now() - t < 30_000; }
+
 let setupDone = false;
 export async function setupCallKeep() {
   if (setupDone) return;
@@ -53,6 +61,7 @@ export async function setupCallKeep() {
     const c = pending.get(String(callUUID).toLowerCase());
     if (!c) return;
     pending.delete(c.uuid);
+    if (!c.sipCallId && !c.answered) declined.set(c.accountId, Date.now());
     emit({ type: 'end', call: c });
   });
   RNCallKeep.addEventListener('didPerformSetMutedCallAction', ({ callUUID, muted }) => {
@@ -70,6 +79,7 @@ export async function handleIncomingPush(data: Record<string, unknown> | undefin
   if (!data || str(data.type) !== 'incoming_call') return;
   const uuid = str(data.uuid).toLowerCase();
   if (!uuid || pending.has(uuid)) return;
+  ready = true;
   // Old push (phone was offline for a while): the caller has gone, don't ring.
   if (Number(data.sentAt) && Date.now() - Number(data.sentAt) > 45_000) { if (Platform.OS === 'ios') RNCallKeep.endCall(uuid); return; }
   await setupCallKeep();
@@ -83,8 +93,8 @@ export async function handleIncomingPush(data: Record<string, unknown> | undefin
     const name = call.company ? `${call.caller || call.callerNumber} - ${call.company}` : call.caller || call.callerNumber;
     RNCallKeep.displayIncomingCall(uuid, call.callerNumber, name, 'number', false);
   }
-  // Nobody linked it to a SIP call within 30 s (voip1 gave up / caller hung up): take it off the screen.
-  setTimeout(() => { const c = pending.get(uuid); if (c && !c.sipCallId) { pending.delete(uuid); RNCallKeep.endCall(uuid); emit({ type: 'end', call: c }); } }, 30_000);
+  // Nobody linked it to a SIP call within 30 s (voip1 gave up / caller hung up): take it off the screen. (Not a decline.)
+  setTimeout(() => { const c = pending.get(uuid); if (c && !c.sipCallId) { pending.delete(uuid); RNCallKeep.reportEndCallWithUUID(uuid, 3); emit({ type: 'end', call: c }); } }, 30_000);
   emit({ type: 'incoming', call });
 }
 
@@ -98,7 +108,11 @@ export function claimForSip(accountId: number, sipCallId: string): PushCall | nu
 }
 export function callForSip(sipCallId: string) { return [...pending.values()].find((p) => p.sipCallId === sipCallId) || null; }
 export function reportAnswered(c: PushCall) { RNCallKeep.setCurrentCallActive(c.uuid); }
-export function reportEnded(c: PushCall) { pending.delete(c.uuid); RNCallKeep.endCall(c.uuid); }
+export function reportEnded(c: PushCall) {
+  pending.delete(c.uuid);
+  // Answered here = our own end; never answered = the caller hung up or a colleague took it (no "missed" from us).
+  if (c.answered) RNCallKeep.endCall(c.uuid); else RNCallKeep.reportEndCallWithUUID(c.uuid, 2);
+}
 
 // ---------- push token -> ONE ----------
 type Save = (kind: 'fcm' | 'apns_voip', token: string) => Promise<unknown>;
@@ -113,13 +127,13 @@ export async function registerPushToken(save: Save, isRegistered: () => boolean)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const messaging = require('@react-native-firebase/messaging').default;
     const t = await messaging().getToken();
-    if (t) await save('fcm', t);
+    if (t) { await save('fcm', t); ready = true; }
     messaging().onTokenRefresh((nt: string) => { save('fcm', nt).catch(() => undefined); });
     messaging().onMessage((m: { data?: Record<string, unknown> }) => handleIncomingPush(m.data, { appActiveAndRegistered: isRegistered() }));
   } else if (Platform.OS === 'ios') {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const VoipPush = require('react-native-voip-push-notification').default;
-    VoipPush.addEventListener('register', (token: string) => { save('apns_voip', token).catch(() => undefined); });
+    VoipPush.addEventListener('register', (token: string) => { save('apns_voip', token).then(() => { ready = true; }).catch(() => undefined); });
     VoipPush.addEventListener('notification', (n: Record<string, unknown>) => { handleIncomingPush(n); });
     // Events that arrived before JS was ready (the push that launched the app).
     VoipPush.addEventListener('didLoadWithEvents', (events: Array<{ name: string; data: unknown }>) => {

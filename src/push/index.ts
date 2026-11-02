@@ -10,6 +10,8 @@ export type PushEvent =
   | { type: 'mute'; call: PushCall; muted: boolean }
   | { type: 'dtmf'; call: PushCall; digits: string };
 export const supported = false;
+export const pushReady = () => false;
+export function wasDeclined(_accountId: number) { return false; }
 export function onPushEvent(_l: (e: PushEvent) => void) { return () => undefined; }
 export async function setupCallKeep() { /* web: nothing */ }
 export async function handleIncomingPush(_d: Record<string, unknown> | undefined, _o: { appActiveAndRegistered?: boolean } = {}) { /* web */ }
