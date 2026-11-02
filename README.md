@@ -14,6 +14,28 @@ Accounts screen.
 Git: `origin` = https://github.com/AEMSYSTEMSUK/aem-softphone (private), branch `main`. Code only - never secrets,
 `.env` files or signing keys.
 
+## Milestone 2 (1-2 Nov 2026): ring on a locked phone + installable builds
+
+**Built (code, typechecked, Android prebuild + JS bundles verified on Windows; NOT yet run on a phone):**
+- **Push relay in ONE** (backend f8c0cfa `softphone-push.service.ts`): Android FCM HTTP v1 high-priority data message;
+  iPhone APNs VoIP push (PushKit). Keys are pasted in ONE > Phone app > "Ringing on a locked phone" (encrypted,
+  write-only); the "Test ring" button sends a fake call to a login's phones. ONE frontend 07a1b34.
+- **voip1** (`ops/voip1/app-push/cust-app-push.py`, prepared, NOT applied): [cust-app] calls ONE's ring check with
+  `?push=1&co=&did=&caller=&num=`, sends ringing, waits up to 12 s for the app to register, then dials.
+- **App:** `src/push/` (CallKeep: Android ConnectionService system call screen / iOS CallKit), FCM background handler
+  (`src/push/background.native.ts`, loaded first in `index.ts`), PushKit via `react-native-voip-push-notification` with
+  the native CallKit report in `plugins/withVoipPush.js` (Apple requires it before JS runs), Android 14 call-service
+  permissions in `plugins/withAndroidCallService.js`. `AppContext` links the ringing system call to the SIP INVITE
+  (same company account, 30 s), so Answer / End / mute / keypad on the lock screen act on the real call.
+- `app.config.ts`: Firebase is only wired in when the build supplies `GOOGLE_SERVICES_JSON` (never committed).
+- **Builds:** `.github/workflows/android-apk.yml` (Actions > Android APK > Run workflow -> APK artifact, debug-signed,
+  for test phones; secret `GOOGLE_SERVICES_JSON_B64` turns push on). `eas.json` for EAS cloud builds (iPhone needs it).
+
+**Order to switch it on:** (1) deploy ONE backend + frontend; (2) Firebase project (AEM Google account) -> add Android
+app `uk.co.aemsystems.theonemspphone` -> download google-services.json -> repo secret GOOGLE_SERVICES_JSON_B64; service
+account key -> ONE Phone app page; (3) run the Android APK workflow, install the APK, sign in, "Test ring"; (4) apply
+the voip1 script; (5) iPhone: after the Apple Developer enrolment, APNs key (.p8) into ONE, then `eas build -p ios`.
+
 ## Architecture
 
 ```
@@ -95,7 +117,7 @@ repo yet. Alternatively, set `ONEMSP_PHONE_DEV_URL=http://localhost:8081` while 
 |---|---|---|
 | Real calls | Code written (JsSipEngine), **untested** | voip1 has no `<key><ext>-app` endpoints, WebRTC template or WSS check yet. No live PBX changes in milestone 1 |
 | Calls in Expo Go | Simulated (StubSipEngine) | react-native-webrtc is native; needs an EAS dev build |
-| Ringing on a locked phone | Not started | Needs PushKit + CallKit (iOS) and FCM + ConnectionService (Android). Blocked on the Apple Developer enrolment |
+| Ringing on a locked phone | **Built (milestone 2), untested on a device** | Android needs the Firebase project; iPhone needs the Apple Developer enrolment + APNs key |
 | Company logo per account | `logoUrl` is always null | ONE's Client has no logo field yet |
 | Microsoft sign-in on desktop/web | Mobile only | The return URL is `theonemspphone://sso`. Electron needs the protocol registered (milestone 2) |
 | Desktop app | Stub that loads the web export | Spec: mobile first. Electron is the next milestone |

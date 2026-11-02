@@ -42,3 +42,7 @@ yarn-error.*
 
 # Electron shell
 desktop/node_modules/
+
+# Firebase / Apple push config - supplied by the build, never committed
+google-services.json
+GoogleService-Info.plist

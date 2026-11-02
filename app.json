@@ -42,7 +42,11 @@
       "expo-web-browser",
       "expo-audio",
       "expo-contacts",
-      "@config-plugins/react-native-webrtc"
+      "@config-plugins/react-native-webrtc",
+      "@config-plugins/react-native-callkeep",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "expo-build-properties"
     ],
     "scheme": "theonemspphone",
     "extra": {

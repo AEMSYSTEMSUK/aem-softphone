@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import * as api from '../api/client';
 import type { Me, SipConfig } from '../api/types';
 import { CallInfo, createSipEngine, RegState, SipEngine } from '../sip';
+import * as push from '../push';
 
 // App-wide state: who's signed in (ONE), their company accounts, the SIP engine and its registrations / calls.
 
@@ -36,9 +37,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentAccountId, setCurrentAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const regsRef = useRef<Record<number, RegState>>({});
+  const phaseRef = useRef<Phase>('starting');
+  useEffect(() => { phaseRef.current = phase; }, [phase]);
+
   useEffect(() => engine.on((e) => {
-    if (e.type === 'registration') setRegs((r) => ({ ...r, [e.accountId]: e.state }));
-    else setCalls((cs) => (e.call.state === 'ended' ? cs.filter((c) => c.id !== e.call.id) : [...cs.filter((c) => c.id !== e.call.id), e.call]));
+    if (e.type === 'registration') { regsRef.current = { ...regsRef.current, [e.accountId]: e.state }; setRegs(regsRef.current); return; }
+    const c = e.call;
+    // Milestone 2: tie SIP calls to the phone's system call screen (CallKit / Android Telecom) that a push put up.
+    if (c.direction === 'in' && c.state === 'ringing') {
+      const pc = push.callForSip(c.id) || push.claimForSip(c.accountId, c.id);
+      if (pc?.answered) engine.answer(c.id); // answered on the lock screen before the INVITE arrived
+    } else if (c.state === 'active') {
+      const pc = push.callForSip(c.id); if (pc) push.reportAnswered(pc);
+    } else if (c.state === 'ended') {
+      const pc = push.callForSip(c.id); if (pc) push.reportEnded(pc);
+    }
+    setCalls((cs) => (c.state === 'ended' ? cs.filter((x) => x.id !== c.id) : [...cs.filter((x) => x.id !== c.id), c]));
   }), [engine]);
 
   const reload = useCallback(async (refreshSip = false) => {
@@ -55,10 +70,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         accounts: ready.map((a) => ({ accountId: a.accountId, username: a.username as string, password: a.password as string, displayName: a.displayName, companyName: a.companyName })),
       });
       if (s.fetchError) setError(s.fetchError);
+      // Milestone 2: tell ONE where to wake this phone (FCM token / Apple VoIP token). Errors here never block calling.
+      push.registerPushToken((kind, token) => api.savePushToken(kind, token), () => Object.values(regsRef.current).includes('registered')).catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your accounts');
     }
   }, [engine]);
+
+  // Push from ONE: wake the SIP side if it is asleep, and carry lock-screen Answer / End / mute / keypad to the SIP call.
+  useEffect(() => push.onPushEvent((e) => {
+    const sipId = e.call.sipCallId;
+    if (e.type === 'incoming') {
+      const anyLive = Object.values(regsRef.current).includes('registered');
+      if (phaseRef.current === 'signed_in' && regsRef.current[e.call.accountId] !== 'registered' && !anyLive) reload().catch(() => undefined);
+    } else if (e.type === 'answer' && sipId) engine.answer(sipId);
+    else if (e.type === 'end' && sipId) engine.hangup(sipId);
+    else if (e.type === 'mute' && sipId) engine.setMuted(sipId, e.muted);
+    else if (e.type === 'dtmf' && sipId) engine.sendDtmf(sipId, e.digits);
+  }), [engine, reload]);
 
   const signedIn = useCallback(async () => { setPhase('signed_in'); await reload(); }, [reload]);
 

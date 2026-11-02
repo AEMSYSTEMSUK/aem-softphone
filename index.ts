@@ -1,3 +1,4 @@
+import './src/push/background'; // Android: FCM background handler (incoming calls) - must load before the app
 import { registerRootComponent } from 'expo';
 
 import App from './App';
