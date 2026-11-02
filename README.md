@@ -57,6 +57,34 @@ the voip1 script; (5) iPhone: after the Apple Developer enrolment, APNs key (.p8
 - Still not done: speakerphone / Bluetooth route button, attended transfer, "Move to my other device", iPhone (waits on
   the Apple Developer account), desktop.
 
+## 3 Nov 2026 (later): call features, first-run setup, desktop app
+
+- **Audio** (`src/audio/`): ringtone for calls the system call screen isn't already ringing (app open, no push), and an
+  output button on the call screen - Phone / Speaker / Headset / Bluetooth on Android (react-native-incall-manager lists
+  what's connected), Phone / Speaker on iPhone. Desktop: soft ring tone + notification, window comes forward.
+- **Call waiting + swap**: a second call rings on the call screen; Answer holds the first; tap the held call to swap.
+- **Attended transfer**: Transfer > "Talk first" holds the caller and rings the colleague; "Complete transfer" joins them
+  (SIP REFER with Replaces), "Back to caller" drops the consultation. "Transfer now" = blind, as before.
+- Recents (with call back), Contacts (ONE phone book + M365 + the phone's own), hold / mute / keypad were already there.
+- **First-run setup screen** (`SetupScreen.tsx`, also Accounts > Check my setup): each company line in plain words - "Line
+  not set up on the phone system" (ask AEM, nothing to do on the phone), "Wrong kind of line", "Can't reach the phone
+  system", "Phone system refused the login", "Couldn't connect" - plus microphone permission and whether calls ring
+  when the app is closed (no Firebase yet = "keep the app open").
+- **Desktop app** (`desktop/`, Electron 45): one instance, tray (closing the window keeps it ringing), incoming calls bring
+  the window forward and flash the taskbar, microphone + notifications only. App-password sign-in (Microsoft sign-in on
+  desktop is not wired yet). ONE allows the `app://phone` origin (backend app.ts CORS) - needs that backend deploy.
+  Build: `npm run export:web`, then in `desktop/`: `npm install`, `npm run dist:win` -> `desktop/release/The One MSP
+  Phone Setup <ver>.exe` (UNSIGNED - sign with Azure Trusted Signing before giving it to customers).
+- Web dialogs: `src/components/ask.ts` (Alert.alert does nothing in a browser).
+
+### Big Property Sale lines (checked read-only on voip1, 3 Nov 2026)
+`bps200-app` (Richard), `bps201-app` (Liam), `bps202-app` (Michelle) exist: WebRTC (wss, DTLS, ICE, opus/alaw/ulaw),
+allow_transfer, max_contacts 5 with remove_existing, context = BPS internal (200-202 dial each other, so transfers to
+an extension work). The BPS menu dials `Local/bps20x-app@cust-app` for 25 s. voip1's `[cust-app]` is still the old
+version (rings only a registered app - no push wait) until `ops/voip1/app-push/cust-app-push.py` is applied.
+Note: an internal call / transfer to 200-202 rings the Wazo user directly (not through [cust-app]), so it reaches the
+app only while it is registered (open), push or not.
+
 ## Architecture
 
 ```

@@ -45,11 +45,15 @@ export default function LoginScreen() {
         <Text style={[s.h1, { color: colors.brand, marginBottom: 4 }]}>{APP_NAME}</Text>
         <Text style={[s.muted, { marginBottom: 24 }]}>Sign in with your ONE phone login.</Text>
 
-        <TouchableOpacity style={s.btn} onPress={microsoft} disabled={busy} accessibilityRole="button">
-          <Text style={s.btnText}>Sign in with Microsoft</Text>
-        </TouchableOpacity>
-
-        <Text style={[s.muted, { textAlign: 'center', marginVertical: 18 }]}>or with an app password</Text>
+        {/* Desktop (3 Nov 2026): Microsoft sign-in returns to theonemspphone://, which the desktop app doesn't take yet - app password there. */}
+        {Platform.OS !== 'web' ? (
+          <>
+            <TouchableOpacity style={s.btn} onPress={microsoft} disabled={busy} accessibilityRole="button">
+              <Text style={s.btnText}>Sign in with Microsoft</Text>
+            </TouchableOpacity>
+            <Text style={[s.muted, { textAlign: 'center', marginVertical: 18 }]}>or with an app password</Text>
+          </>
+        ) : <Text style={[s.muted, { marginBottom: 12 }]}>On the desktop, sign in with your app password.</Text>}
 
         <TextInput style={[s.input, { marginBottom: 10 }]} placeholder="Email" autoCapitalize="none" autoComplete="email" keyboardType="email-address" value={email} onChangeText={setEmail} />
         <TextInput style={[s.input, { marginBottom: 14 }]} placeholder="App password" secureTextEntry autoCapitalize="none" value={password} onChangeText={setPassword}

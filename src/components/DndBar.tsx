@@ -1,5 +1,6 @@
+import { ask } from './ask';
 import React, { useState } from 'react';
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View } from 'react-native';
 import * as api from '../api/client';
 import { colors, s, statusLabel } from './theme';
 import { useApp } from '../state/AppContext';
@@ -15,9 +16,9 @@ export default function DndBar() {
 
   const set = async (mode: 'off' | 'on' | '1h' | '2h' | 'until_tomorrow') => {
     setBusy(true);
-    try { setMe(await api.setDnd(mode)); } catch (e) { Alert.alert('Could not change DND', e instanceof Error ? e.message : ''); } finally { setBusy(false); }
+    try { setMe(await api.setDnd(mode)); } catch (e) { ask('Could not change DND', e instanceof Error ? e.message : ''); } finally { setBusy(false); }
   };
-  const timed = () => Alert.alert('Do not disturb', 'Calls go where your company sends unanswered calls.', [
+  const timed = () => ask('Do not disturb', 'Calls go where your company sends unanswered calls.', [
     { text: 'For 1 hour', onPress: () => set('1h') },
     { text: 'For 2 hours', onPress: () => set('2h') },
     { text: 'Until tomorrow 08:30', onPress: () => set('until_tomorrow') },

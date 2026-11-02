@@ -1,7 +1,7 @@
 // Web / Electron: no push or system call screen (the desktop app is open while it's in use). Same API as index.native.ts.
 export interface PushCall {
   uuid: string; accountId: number; company: string; did: string; caller: string; callerNumber: string; at: number;
-  answered: boolean; sipCallId: string | null;
+  answered: boolean; sipCallId: string | null; shownBySystem: boolean;
 }
 export type PushEvent =
   | { type: 'incoming'; call: PushCall }

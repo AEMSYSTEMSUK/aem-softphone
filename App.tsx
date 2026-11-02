@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/state/AppContext';
@@ -11,6 +11,9 @@ import ContactsScreen from './src/screens/ContactsScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import VoicemailScreen from './src/screens/VoicemailScreen';
 import CallScreen from './src/screens/CallScreen';
+import SetupScreen, { SETUP_DONE_KEY } from './src/screens/SetupScreen';
+import { getItem } from './src/api/storage';
+import { setupOpener } from './src/state/setupOpener';
 
 // Plain state tabs (no router) so the same tree runs unchanged in the Electron shell (web export).
 const TABS = [
@@ -24,8 +27,16 @@ const TABS = [
 function Shell() {
   const { phase, calls } = useApp();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('dial');
+  const [setup, setSetup] = useState(false);
+  // First run after sign-in (3 Nov 2026): the setup check until the person has been through it once on this device.
+  useEffect(() => {
+    if (phase !== 'signed_in') return;
+    getItem(SETUP_DONE_KEY).then((v) => { if (!v) setSetup(true); }).catch(() => undefined);
+  }, [phase]);
+  useEffect(() => setupOpener.set(() => setSetup(true)), []);
   if (phase === 'starting') return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={colors.brand} /></View>;
   if (phase === 'signed_out') return <LoginScreen />;
+  if (setup && !calls.length) return <SetupScreen onDone={() => setSetup(false)} />;
   const Active = TABS.find((t) => t.key === tab)!.C;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>

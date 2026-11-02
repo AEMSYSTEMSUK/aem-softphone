@@ -15,6 +15,7 @@ import { APP_NAME } from '../config';
 export interface PushCall {
   uuid: string; accountId: number; company: string; did: string; caller: string; callerNumber: string; at: number;
   answered: boolean; sipCallId: string | null;
+  shownBySystem: boolean; // the system call screen is ringing it (CallKit / Android Telecom) - the app doesn't ring too
 }
 export type PushEvent =
   | { type: 'incoming'; call: PushCall }
@@ -85,13 +86,14 @@ export async function handleIncomingPush(data: Record<string, unknown> | undefin
   await setupCallKeep();
   const call: PushCall = {
     uuid, accountId: Number(data.accountId) || 0, company: str(data.company), did: str(data.did), caller: str(data.caller),
-    callerNumber: str(data.callerNumber) || 'Unknown', at: Date.now(), answered: false, sipCallId: null,
+    callerNumber: str(data.callerNumber) || 'Unknown', at: Date.now(), answered: false, sipCallId: null, shownBySystem: Platform.OS === 'ios',
   };
   pending.set(uuid, call);
   // Android: the app's own call screen is enough when it is open and signed in; otherwise the system call screen.
   if (Platform.OS === 'android' && !(opts.appActiveAndRegistered && AppState.currentState === 'active')) {
     const name = call.company ? `${call.caller || call.callerNumber} - ${call.company}` : call.caller || call.callerNumber;
     RNCallKeep.displayIncomingCall(uuid, call.callerNumber, name, 'number', false);
+    call.shownBySystem = true;
   }
   // Nobody linked it to a SIP call within 30 s (voip1 gave up / caller hung up): take it off the screen. (Not a decline.)
   setTimeout(() => { const c = pending.get(uuid); if (c && !c.sipCallId) { pending.delete(uuid); RNCallKeep.reportEndCallWithUUID(uuid, 3); emit({ type: 'end', call: c }); } }, 30_000);

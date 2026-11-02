@@ -178,5 +178,18 @@ export class JsSipEngine implements SipEngine {
       },
     });
   }
+  // Attended: the caller (held) is REFERred to the consulted person's dialog with Replaces, so Asterisk joins them and
+  // drops both of our legs. Fails = both calls stay with us (caller still on hold).
+  attendedTransfer(id: string, consultId: string) {
+    const a = this.live.get(id), b = this.live.get(consultId);
+    if (!a || !b) return;
+    a.session.refer(b.session.remote_identity.uri, {
+      replaces: b.session,
+      eventHandlers: {
+        accepted: () => { for (const s of [a.session, b.session]) { try { s.terminate(); } catch { /* already gone */ } } },
+        failed: () => this.update(id, { endReason: 'transfer failed' }),
+      },
+    });
+  }
   on(l: (e: SipEvent) => void) { return this.ev.on(l); }
 }

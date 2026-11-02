@@ -31,6 +31,7 @@ export class StubSipEngine implements SipEngine {
   isConfigured() { return this.accounts.length > 0; }
   liveCalls() { return [...this.calls.values()]; }
   transfer(id: string) { this.update(id, { state: 'ended', endReason: 'transferred' }); }
+  attendedTransfer(id: string, consultId: string) { this.update(id, { state: 'ended', endReason: 'transferred' }); this.update(consultId, { state: 'ended', endReason: 'transferred' }); }
   registrations() { return { ...this.regs }; }
 
   private update(id: string, patch: Partial<CallInfo>) {

@@ -55,6 +55,8 @@ export interface SipEngine {
   liveCalls(): CallInfo[];
   /** Blind transfer (SIP REFER) to an extension or number - the PBX takes the call over. */
   transfer(callId: string, target: string): void;
+  /** Attended transfer: put the caller (callId, on hold) through to the person on consultCallId (SIP REFER with Replaces). */
+  attendedTransfer(callId: string, consultCallId: string): void;
   registrations(): Record<number, RegState>;
   call(accountId: number, number: string): Promise<string>;
   answer(callId: string): void;

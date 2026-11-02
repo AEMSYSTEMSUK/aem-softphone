@@ -16,6 +16,7 @@ interface Ctx {
   sip: SipConfig | null;
   engine: SipEngine;
   regs: Record<number, RegState>;
+  regReasons: Record<number, string | null>; // why a line failed to connect (setup screen)
   calls: CallInfo[];
   currentAccountId: number | null;
   setCurrentAccountId: (id: number) => void;
@@ -41,11 +42,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const regsRef = useRef<Record<number, RegState>>(engine.registrations());
+  const [regReasons, setRegReasons] = useState<Record<number, string | null>>({});
   const phaseRef = useRef<Phase>('starting');
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
   useEffect(() => engine.on((e) => {
-    if (e.type === 'registration') { regsRef.current = { ...regsRef.current, [e.accountId]: e.state }; setRegs(regsRef.current); return; }
+    if (e.type === 'registration') {
+      regsRef.current = { ...regsRef.current, [e.accountId]: e.state }; setRegs(regsRef.current);
+      setRegReasons((m) => ({ ...m, [e.accountId]: e.state === 'failed' ? e.reason || null : null }));
+      return;
+    }
     const c = e.call; // linking to the lock-screen call (push) is done in phoneCore, so it also works headless
     setCalls((cs) => (c.state === 'ended' ? cs.filter((x) => x.id !== c.id) : [...cs.filter((x) => x.id !== c.id), c]));
   }), [engine]);
@@ -91,8 +97,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     api.resumeSession().then((ok) => (ok ? signedIn() : setPhase('signed_out'))).catch(() => setPhase('signed_out'));
   }, [engine, signedIn]);
 
-  const value = useMemo<Ctx>(() => ({ phase, me, sip, engine, regs, calls, currentAccountId, setCurrentAccountId, error, signedIn, signOut, reload, setMe }),
-    [phase, me, sip, engine, regs, calls, currentAccountId, error, signedIn, signOut, reload]);
+  const value = useMemo<Ctx>(() => ({ phase, me, sip, engine, regs, regReasons, calls, currentAccountId, setCurrentAccountId, error, signedIn, signOut, reload, setMe }),
+    [phase, me, sip, engine, regs, regReasons, calls, currentAccountId, error, signedIn, signOut, reload]);
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
 

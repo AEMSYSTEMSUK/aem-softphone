@@ -3,6 +3,7 @@ import * as api from '../api/client';
 import type { SipConfig } from '../api/types';
 import { createSipEngine, SipEngine } from '../sip';
 import * as push from '../push';
+import * as audio from '../audio';
 
 // #230 (3 Nov 2026): the phone side that must work WITHOUT the UI. On Android a push for an incoming call can start the
 // app's JS headless (no React tree, phone locked); this module then signs the lines in straight away, so voip1's INVITE
@@ -31,10 +32,18 @@ export function getEngine(): SipEngine {
       const pc = push.callForSip(c.id) || push.claimForSip(c.accountId, c.id);
       if (pc?.answered) e.answer(c.id); // answered on the lock screen before the INVITE arrived
       else if (!pc && push.wasDeclined(c.accountId)) e.hangup(c.id); // declined on the lock screen before it arrived
-    } else if (c.state === 'active') {
-      const pc = push.callForSip(c.id); if (pc) push.reportAnswered(pc);
+      else if (!pc?.shownBySystem && !e.liveCalls().some((x) => x.id !== c.id && x.state !== 'ringing')) {
+        // Nobody else is ringing it: ring in the app (not while already on a call - the call screen shows it instead).
+        audio.ring([c.remoteName || c.remoteNumber, c.companyName].filter(Boolean).join(' - '));
+      }
+    } else if (c.state === 'active' || (c.direction === 'out' && c.state === 'connecting')) {
+      if (c.state === 'active') { const pc = push.callForSip(c.id); if (pc) push.reportAnswered(pc); }
+      audio.callStarted().catch(() => undefined);
     } else if (c.state === 'ended') {
       const pc = push.callForSip(c.id); if (pc) push.reportEnded(pc);
+      const left = e.liveCalls().filter((x) => x.id !== c.id);
+      if (!left.length) audio.allCallsEnded();
+      else if (!left.some((x) => x.state === 'ringing')) audio.stopRing();
       sleepSoon();
     }
   });

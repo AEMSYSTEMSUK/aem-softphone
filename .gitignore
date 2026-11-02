@@ -46,3 +46,7 @@ desktop/node_modules/
 # Firebase / Apple push config - supplied by the build, never committed
 google-services.json
 GoogleService-Info.plist
+
+# desktop build output (3 Nov 2026)
+/desktop/release/
+/desktop/icon.png
