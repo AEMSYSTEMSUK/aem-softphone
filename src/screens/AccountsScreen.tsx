@@ -7,6 +7,7 @@ import { useApp } from '../state/AppContext';
 import { StubSipEngine } from '../sip';
 import { lineHealth } from '../state/lineStatus';
 import { setupOpener } from '../state/setupOpener';
+import SettingsScreen from './SettingsScreen';
 
 const REG: Record<string, { text: string; color: string }> = {
   registered: { text: 'Connected', color: colors.green },
@@ -20,11 +21,14 @@ const REG: Record<string, { text: string; color: string }> = {
 export default function AccountsScreen() {
   const { me, sip, regs, regReasons, engine, reload, signOut, currentAccountId, setCurrentAccountId, setMe, error } = useApp();
   const [refreshing, setRefreshing] = useState(false);
+  const [settings, setSettings] = useState(false);
   const onRefresh = async () => { setRefreshing(true); await reload(true); setRefreshing(false); };
 
   const toggleDnd = async (accountId: number, on: boolean) => {
     try { setMe(await api.setDnd(on ? 'off' : 'on', accountId)); } catch (e) { ask('Could not change DND', e instanceof Error ? e.message : ''); }
   };
+
+  if (settings) return <SettingsScreen onDone={() => setSettings(false)} />;
 
   return (
     <ScrollView style={s.screen} contentContainerStyle={s.pad} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
@@ -62,7 +66,10 @@ export default function AccountsScreen() {
           </TouchableOpacity>
         );
       })}
-      <TouchableOpacity style={[s.btnGhost, { marginTop: 20 }]} onPress={() => setupOpener.open()}>
+      <TouchableOpacity style={[s.btnGhost, { marginTop: 20 }]} onPress={() => setSettings(true)}>
+        <Text style={s.btnGhostText}>Working hours and settings</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={[s.btnGhost, { marginTop: 10 }]} onPress={() => setupOpener.open()}>
         <Text style={s.btnGhostText}>Check my setup</Text>
       </TouchableOpacity>
       <TouchableOpacity style={[s.btnGhost, { marginTop: 10 }]} onPress={() => ask('Sign out?', 'Calls stop ringing on this device until you sign in again. To stop calls for a while, use DND instead.', [

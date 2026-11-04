@@ -25,6 +25,8 @@ interface Ctx {
   signOut: () => Promise<void>;
   reload: (refreshSip?: boolean) => Promise<void>;
   setMe: (m: Me) => void;
+  newVoicemail: number; // unheard messages, for the tab badge
+  setNewVoicemail: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const AppCtx = createContext<Ctx | null>(null);
@@ -40,6 +42,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [calls, setCalls] = useState<CallInfo[]>(() => engine.liveCalls()); // e.g. answered on the lock screen
   const [currentAccountId, setCurrentAccountId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newVoicemail, setNewVoicemail] = useState(0);
 
   const regsRef = useRef<Record<number, RegState>>(engine.registrations());
   const [regReasons, setRegReasons] = useState<Record<number, string | null>>({});
@@ -56,6 +59,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCalls((cs) => (c.state === 'ended' ? cs.filter((x) => x.id !== c.id) : [...cs.filter((x) => x.id !== c.id), c]));
   }), [engine]);
 
+  const refreshVoicemail = useCallback(() => {
+    api.getVoicemail().then((r) => setNewVoicemail(r.items.filter((v) => v.isNew).length)).catch(() => undefined);
+  }, []);
+
   const reload = useCallback(async (refreshSip = false) => {
     setError(null);
     try {
@@ -66,30 +73,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSip(s);
       await core.applySipConfig(s);
       if (s.fetchError) setError(s.fetchError);
+      refreshVoicemail();
       // Milestone 2: tell ONE where to wake this phone (FCM token / Apple VoIP token). Errors here never block calling.
       push.registerPushToken((kind, token) => api.savePushToken(kind, token), core.anyRegistered).catch(() => undefined);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load your accounts');
     }
-  }, [engine]);
+  }, [engine, refreshVoicemail]);
 
   // Push mode (3 Nov 2026): background -> unregister once push works and nothing is in progress (phoneCore.sleepSoon);
   // front -> register again. Lock-screen Answer / End etc. and push wake-ups are handled in phoneCore.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (st) => {
       if (phaseRef.current !== 'signed_in') return;
-      if (st === 'active') core.wake().catch(() => undefined);
+      if (st === 'active') { core.wake().catch(() => undefined); refreshVoicemail(); }
       else if (st === 'background') core.sleepSoon();
     });
     return () => sub.remove();
-  }, []);
+  }, [refreshVoicemail]);
 
   const signedIn = useCallback(async () => { setPhase('signed_in'); await reload(); }, [reload]);
 
   const signOut = useCallback(async () => {
     await engine.stop();
     await api.logout().catch(() => undefined);
-    setMe(null); setSip(null); setRegs({}); setCalls([]); setPhase('signed_out');
+    setMe(null); setSip(null); setRegs({}); setCalls([]); setNewVoicemail(0); setPhase('signed_out');
   }, [engine]);
 
   useEffect(() => {
@@ -97,8 +105,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     api.resumeSession().then((ok) => (ok ? signedIn() : setPhase('signed_out'))).catch(() => setPhase('signed_out'));
   }, [engine, signedIn]);
 
-  const value = useMemo<Ctx>(() => ({ phase, me, sip, engine, regs, regReasons, calls, currentAccountId, setCurrentAccountId, error, signedIn, signOut, reload, setMe }),
-    [phase, me, sip, engine, regs, regReasons, calls, currentAccountId, error, signedIn, signOut, reload]);
+  const value = useMemo<Ctx>(() => ({ newVoicemail, setNewVoicemail, phase, me, sip, engine, regs, regReasons, calls, currentAccountId, setCurrentAccountId, error, signedIn, signOut, reload, setMe }),
+    [newVoicemail, phase, me, sip, engine, regs, regReasons, calls, currentAccountId, error, signedIn, signOut, reload]);
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
 

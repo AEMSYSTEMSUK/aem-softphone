@@ -4,6 +4,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as api from '../api/client';
 import type { Voicemail } from '../api/types';
 import { colors, s } from '../components/theme';
+import { useApp } from '../state/AppContext';
 import { useDial } from '../state/useDial';
 
 const dur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
@@ -11,6 +12,7 @@ const dur = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStar
 // Voicemail is pushed from voip1 to ONE (customer boxes + AEM/Fruity boxes), with the transcript ONE makes.
 export default function VoicemailScreen() {
   const dial = useDial();
+  const { me, setNewVoicemail } = useApp();
   const player = useAudioPlayer(null);
   const status = useAudioPlayerStatus(player);
   const [items, setItems] = useState<Voicemail[]>([]);
@@ -20,8 +22,8 @@ export default function VoicemailScreen() {
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
-    try { setItems((await api.getVoicemail()).items); } catch (e) { setErr(e instanceof Error ? e.message : 'Could not load voicemail'); } finally { setLoading(false); }
-  }, []);
+    try { const r = await api.getVoicemail(); setItems(r.items); setNewVoicemail(r.items.filter((v) => v.isNew).length); } catch (e) { setErr(e instanceof Error ? e.message : 'Could not load voicemail'); } finally { setLoading(false); }
+  }, [setNewVoicemail]);
   useEffect(() => { load(); }, [load]);
 
   const play = async (v: Voicemail) => {
@@ -29,6 +31,7 @@ export default function VoicemailScreen() {
     player.replace(await api.voicemailSource(v.id));
     player.play();
     setPlaying(v.id);
+    if (v.isNew) setNewVoicemail((n) => Math.max(0, n - 1));
     setItems((xs) => xs.map((x) => (x.id === v.id ? { ...x, isNew: false } : x)));
   };
 
@@ -54,7 +57,7 @@ export default function VoicemailScreen() {
                 <Text style={{ color: colors.brand, fontWeight: '600' }}>{playing === item.id && status.playing ? 'Pause' : 'Play'}</Text>
               </TouchableOpacity>
               {item.callerNumber && (
-                <TouchableOpacity onPress={() => dial(item.callerNumber as string)}>
+                <TouchableOpacity onPress={() => dial(item.callerNumber as string, me?.accounts.find((a) => a.companyName === item.mailbox)?.id)}>
                   <Text style={{ color: colors.green, fontWeight: '600' }}>Call back</Text>
                 </TouchableOpacity>
               )}

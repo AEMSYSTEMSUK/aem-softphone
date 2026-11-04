@@ -25,7 +25,7 @@ const TABS = [
 ] as const;
 
 function Shell() {
-  const { phase, calls } = useApp();
+  const { phase, calls, newVoicemail } = useApp();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('dial');
   const [setup, setSetup] = useState(false);
   // First run after sign-in (3 Nov 2026): the setup check until the person has been through it once on this device.
@@ -45,7 +45,7 @@ function Shell() {
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card }}>
         {TABS.map((t) => (
           <TouchableOpacity key={t.key} onPress={() => setTab(t.key)} style={{ flex: 1, paddingVertical: 12, alignItems: 'center' }} accessibilityRole="tab" accessibilityState={{ selected: tab === t.key }}>
-            <Text style={{ color: tab === t.key ? colors.brand : colors.muted, fontWeight: tab === t.key ? '700' : '500', fontSize: 12 }}>{t.label}</Text>
+            <Text style={{ color: tab === t.key ? colors.brand : colors.muted, fontWeight: tab === t.key ? '700' : '500', fontSize: 12 }}>{t.label}{t.key === 'voicemail' && newVoicemail > 0 ? ` (${newVoicemail})` : ''}</Text>
           </TouchableOpacity>
         ))}
       </View>

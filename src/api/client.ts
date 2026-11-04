@@ -94,7 +94,7 @@ export const getHistory = (accountId?: number) => api<{ items: HistoryItem[] }>(
 export const getVoicemail = () => api<{ items: Voicemail[] }>('/voicemail');
 export const setDnd = (mode: 'off' | 'on' | '1h' | '2h' | 'until_tomorrow', accountId?: number) =>
   api<Me>('/dnd', { method: 'PUT', body: JSON.stringify({ mode, accountId }) });
-export const saveSettings = (body: { hoursEnabled?: boolean; workingHours?: WeekHours | null; skipBankHolidays?: boolean; contactSources?: Record<string, boolean>; accountId?: number }) =>
+export const saveSettings = (body: { hoursEnabled?: boolean; workingHours?: WeekHours | null; skipBankHolidays?: boolean; contactSources?: Record<string, boolean>; accountId?: number; followUser?: boolean }) =>
   api<Me>('/settings', { method: 'PUT', body: JSON.stringify(body) });
 export const savePushToken = (kind: 'apns_voip' | 'apns' | 'fcm', token: string | null) =>
   api<{ saved: boolean }>('/device/push', { method: 'PUT', body: JSON.stringify({ kind, token }) });
