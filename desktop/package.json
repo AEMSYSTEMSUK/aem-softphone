@@ -13,7 +13,7 @@
   "build": {
     "appId": "uk.co.aemsystems.theonemspphone.desktop",
     "productName": "The One MSP Phone",
-    "files": ["main.js", "preload.js", "icon.png", "dist/**/*"],
+    "files": ["main.js", "preload.js", "dial.js", "icon.png", "dist/**/*"],
     "win": { "target": "nsis", "icon": "icon.png" },
     "nsis": { "oneClick": true, "perMachine": false },
     "directories": { "output": "release" }

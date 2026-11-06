@@ -3,6 +3,7 @@ import { ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'rea
 import * as api from '../api/client';
 import type { Me, Segment, WeekHours } from '../api/types';
 import { ask } from '../components/ask';
+import DialAnywhereCard from '../components/DialAnywhereCard';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
 import { checkWeek, copyMondayToWeekdays, DAYS, DEFAULT_BLOCK, defaultWeek } from '../state/hours';
@@ -147,6 +148,8 @@ export default function SettingsScreen({ onDone }: { onDone: () => void }) {
       <View style={s.card}>
         <Row label="Off on UK bank holidays" value={me.settings.skipBankHolidays} onChange={(v) => saveNow({ skipBankHolidays: v })} />
       </View>
+
+      <DialAnywhereCard />
 
       <View style={s.card}>
         <Text style={s.h2}>Search contacts in</Text>

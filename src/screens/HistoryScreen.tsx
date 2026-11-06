@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import * as api from '../api/client';
 import type { HistoryItem } from '../api/types';
+import CallFromPicker from '../components/CallFromPicker';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
 import { useDial } from '../state/useDial';
@@ -40,6 +41,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={s.screen}>
+      <CallFromPicker />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12 }}>
         {chip('Missed', missedOnly, () => setMissedOnly((v) => !v))}
         {(me?.accounts.length || 0) > 1 && chip('All companies', accountId === null, () => setAccountId(null))}

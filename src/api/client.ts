@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { API_BASE, APP_VERSION } from '../config';
 import { deleteItem, getItem, setItem } from './storage';
-import type { Contact, HistoryItem, Me, SipConfig, TokenPair, Voicemail, WeekHours } from './types';
+import type { Contact, DeskPhone, HistoryItem, Me, SipConfig, TokenPair, Voicemail, WeekHours } from './types';
 
 // Thin client for ONE's /api/softphone. Access token in memory only; refresh token in the keychain, rotated by ONE on
 // every refresh. Any 401 tries one refresh, then signs out (onSignedOut) - e.g. after "revoke this phone" in ONE.
@@ -96,6 +96,9 @@ export const setDnd = (mode: 'off' | 'on' | '1h' | '2h' | 'until_tomorrow', acco
   api<Me>('/dnd', { method: 'PUT', body: JSON.stringify({ mode, accountId }) });
 export const saveSettings = (body: { hoursEnabled?: boolean; workingHours?: WeekHours | null; skipBankHolidays?: boolean; contactSources?: Record<string, boolean>; accountId?: number; followUser?: boolean }) =>
   api<Me>('/settings', { method: 'PUT', body: JSON.stringify(body) });
+export const getDeskPhones = () => api<{ accounts: DeskPhone[] }>('/desk-phones');
+// ONE rings this account's desk phone, and dials once it is picked up.
+export const deskDial = (accountId: number, number: string) => api<{ number: string }>('/desk-dial', { method: 'POST', body: JSON.stringify({ accountId, number }) });
 export const savePushToken = (kind: 'apns_voip' | 'apns' | 'fcm', token: string | null) =>
   api<{ saved: boolean }>('/device/push', { method: 'PUT', body: JSON.stringify({ kind, token }) });
 
