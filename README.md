@@ -74,7 +74,7 @@ the voip1 script; (5) iPhone: after the Apple Developer enrolment, APNs key (.p8
   the window forward and flash the taskbar, microphone + notifications only. App-password sign-in (Microsoft sign-in on
   desktop is not wired yet). ONE allows the `app://phone` origin (backend app.ts CORS) - needs that backend deploy.
   Build: `npm run export:web`, then in `desktop/`: `npm install`, `npm run dist:win` -> `desktop/release/The One MSP
-  Phone Setup <ver>.exe` (UNSIGNED - sign with Azure Trusted Signing before giving it to customers).
+  Phone Setup <ver>.exe` (UNSIGNED - for a signed one use `desktop\build\release.ps1`, see 7 Nov below).
 - Web dialogs: `src/components/ask.ts` (Alert.alert does nothing in a browser).
 
 ### Big Property Sale lines (checked read-only on voip1, 3 Nov 2026)
@@ -116,6 +116,18 @@ map the columns, numbers are cleaned, duplicates dropped, and rows that can't be
 click to call, mark done / no answer / call back with a note, Next, progress, delete. **Stored only on this computer**
 (the app's local storage, not encrypted, kept per signed-in person after sign-out), never in ONE. xlsx is read with
 `read-excel-file` (MIT) after a check on the zip's unpacked size. Formulas aren't run, and cells stay plain text.
+
+**7 Nov 2026 additions.** Call list **Export** saves the results (outcome, note, when) as a .csv for Excel; cells that
+start like a formula get a leading `'` so Excel shows them as text. Notes are written once typing stops, not per key.
+999 and 112 are never dialled from a call list, a link, the hotkey or desk phone mode ("dial on the phone itself"); the
+Keypad on This computer still dials them, as before. ONE (backend `c39a25d`) refuses them too, and voip1 refuses any
+click-to-dial request that sat in the queue more than 20 s, so a slow queue can't ring a desk phone late.
+
+**Release (desktop).** One command, from the repo root in a PowerShell window after `Connect-AzAccount`:
+`.\desktop\build\release.ps1` (add `-Version 0.3.1` to bump first). It exports the web build, runs electron-builder with
+Azure Trusted Signing (`desktop/electron-builder.signed.js`: account `aemsystems-signing`, profile `aemsystems-public`,
+same as the Windows agent) and stops unless the installer and the app exe are both Authenticode-Valid. `-Unsigned` makes a
+local test build only.
 
 ## Architecture
 

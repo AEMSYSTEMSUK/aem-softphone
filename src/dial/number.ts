@@ -17,10 +17,14 @@ export function normaliseNumber(raw: unknown): string | null {
   return d.length >= 3 ? d : null;
 }
 
+// 999 / 112 never go through click-to-dial, a call list or a number from outside the app (7 Nov 2026): a stray "999"
+// must not become an emergency call. The Keypad on this computer, and the handset, still dial them (useDial).
+const EMERGENCY = new Set(['999', '112']);
+
 // UK landlines/mobiles/non-geo (01/02/03/07/08 not 09) or an internal extension.
 export function dialableNumber(raw: string): string | null {
   const n = normaliseNumber(raw);
-  if (!n) return null;
+  if (!n || EMERGENCY.has(n)) return null;
   if (/^\d{3,5}$/.test(n)) return n;
   return /^0(1|2|3)\d{8,9}$|^07[1-57-9]\d{8}$|^08(00|08)\d{6,7}$/.test(n) ? n : null;
 }
@@ -45,6 +49,7 @@ export function parseNumber(raw: unknown): ParsedNumber {
   if (digits.length <= 5 && digits !== s) return { ok: false, reason: NOT_A_NUMBER };
   const number = dialableNumber(s);
   if (number) return { ok: true, number };
+  if (EMERGENCY.has(digits)) return { ok: false, reason: 'For 999 or 112, dial on the phone itself' };
   if (digits.startsWith('09') || digits.startsWith('449')) return { ok: false, reason: "09 premium numbers can't be dialled" };
   return { ok: false, reason: 'UK numbers and extensions only' };
 }

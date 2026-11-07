@@ -23,3 +23,14 @@ export async function pickSpreadsheet(): Promise<{ fileName: string; table: Tabl
   const bytes = new Uint8Array(await f.arrayBuffer());
   return { fileName: f.name.slice(0, 120), table: ext === 'csv' ? parseCsv(decodeText(bytes)) : await readXlsx(bytes) };
 }
+
+// Saving the results: a download from the page, so Electron shows its own Save As box and the file goes where the person
+// puts it. Nothing passes through the main process.
+export function saveTextFile(fileName: string, text: string, type = 'text/csv') {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

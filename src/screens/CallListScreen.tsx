@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { deleteItem, getItem, setItem } from '../api/storage';
-import { pickSpreadsheet } from '../calllist/file';
+import { pickSpreadsheet, saveTextFile } from '../calllist/file';
 import { buildRows, Field, guessMapping, ImportResult, looksLikeHeader, Mapping, Table } from '../calllist/parse';
-import { CallEntry, CallList, EntryStatus, listKey, markEntry, newList, nextEntry, parseStored, progress, setNote } from '../calllist/store';
+import { CallEntry, CallList, EntryStatus, listKey, markEntry, newList, nextEntry, parseStored, progress, resultsCsv, resultsFileName, setNote } from '../calllist/store';
 import AccountPicker from '../components/AccountPicker';
 import CallFromPicker from '../components/CallFromPicker';
 import { ask } from '../components/ask';
@@ -96,13 +96,32 @@ export default function CallListScreen() {
   }, [userId]);
 
   // storage.ts keeps quiet when the browser's storage is full, so read it back rather than lose someone's notes silently.
-  const save = async (next: CallList) => {
-    setList(next);
+  // Typing a note only writes once the typing stops (a 5,000-row list is about a megabyte); anything else writes at once,
+  // and so does leaving the tab.
+  const pending = useRef<CallList | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persist = async (next: CallList) => {
     if (!userId) return;
     const json = JSON.stringify(next);
     await setItem(listKey(userId), json);
     setErr((await getItem(listKey(userId))) === json ? null : "Couldn't save the list on this computer: the latest changes will be lost when the app closes");
   };
+  const flush = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const p = pending.current;
+    pending.current = null;
+    if (p) persist(p);
+  };
+  const save = (next: CallList, typing = false) => {
+    setList(next);
+    pending.current = next;
+    if (timer.current) clearTimeout(timer.current);
+    if (typing) timer.current = setTimeout(flush, 600); else flush();
+  };
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
+  useEffect(() => () => flushRef.current(), []);
 
   const importFile = async () => {
     setErr(null);
@@ -121,9 +140,14 @@ export default function CallListScreen() {
     ]);
   };
 
+  const exportResults = () => {
+    if (!list) return;
+    try { saveTextFile(resultsFileName(list), resultsCsv(list)); } catch (e) { setErr(e instanceof Error ? e.message : "Couldn't save the file"); }
+  };
+
   const remove = () => ask('Delete this list?', 'The list and your notes are removed from this computer. They can\'t be got back.', [
     { text: 'Cancel', style: 'cancel' },
-    { text: 'Delete', style: 'destructive', onPress: () => { setList(null); if (userId) deleteItem(listKey(userId)).catch(() => undefined); } },
+    { text: 'Delete', style: 'destructive', onPress: () => { if (timer.current) clearTimeout(timer.current); pending.current = null; setList(null); if (userId) deleteItem(listKey(userId)).catch(() => undefined); } },
   ]);
 
   const call = (e: CallEntry) => {
@@ -159,6 +183,7 @@ export default function CallListScreen() {
       <View style={s.pad}>
         <View style={s.row}>
           <Text style={[s.h2, { flex: 1 }]} numberOfLines={1}>{list.fileName}</Text>
+          <TouchableOpacity onPress={exportResults} style={{ marginLeft: 12 }} accessibilityRole="button" accessibilityLabel="Save the results as a spreadsheet"><Text style={{ color: colors.brand }}>Export</Text></TouchableOpacity>
           <TouchableOpacity onPress={askImport} style={{ marginLeft: 12 }} accessibilityRole="button"><Text style={{ color: colors.brand }}>Import</Text></TouchableOpacity>
           <TouchableOpacity onPress={remove} style={{ marginLeft: 12 }} accessibilityRole="button"><Text style={{ color: colors.red }}>Delete</Text></TouchableOpacity>
         </View>
@@ -197,7 +222,7 @@ export default function CallListScreen() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                     {MARKS.map((m) => <Chip key={m} label={STATUS[m].text} on={item.status === m} onPress={() => save(markEntry(list, item.id, item.status === m ? 'todo' : m))} />)}
                   </View>
-                  <TextInput value={item.note} onChangeText={(t) => save(setNote(list, item.id, t))} placeholder="Add a note" maxLength={500} multiline style={[s.input, { paddingVertical: 6, fontSize: 14 }]} accessibilityLabel="Note" />
+                  <TextInput value={item.note} onChangeText={(t) => save(setNote(list, item.id, t), true)} onBlur={flush} placeholder="Add a note" maxLength={500} multiline style={[s.input, { paddingVertical: 6, fontSize: 14 }]} accessibilityLabel="Note" />
                 </View>
               )}
             </View>

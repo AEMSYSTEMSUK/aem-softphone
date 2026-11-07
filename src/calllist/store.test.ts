@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { markEntry, newList, nextEntry, parseStored, progress, setNote } from './store.ts';
+import { markEntry, newList, nextEntry, parseStored, progress, resultsCsv, resultsFileName, setNote } from './store.ts';
 
 const rows = ['01', '02', '03'].map((n) => ({ name: n, company: '', number: `019242633${n}`, notes: '' }));
 
@@ -31,6 +31,21 @@ test('next number skips worked rows and goes round to the top', () => {
   assert.equal(nextEntry(l)?.id, 3); // the current row is the only one left
   l = markEntry(l, 3, 'done');
   assert.equal(nextEntry(l), null);
+});
+
+test('results export keeps outcomes and notes, and never lets Excel run a cell', () => {
+  let l = newList('Leads Nov.xlsx', [
+    { name: '=HYPERLINK("http://x")', company: 'Acme, Ltd', number: '01924263370', notes: 'line 1\nline 2' },
+    { name: 'Bob', company: '', number: '+12125550100', notes: '' },
+  ]);
+  l = setNote(markEntry(l, 1, 'call_back', new Date('2026-11-07T10:15:00Z')), 1, 'said "after 3"');
+  const csv = resultsCsv(l);
+  assert.ok(csv.startsWith('﻿Name,Company,Number,'));
+  const lines = csv.slice(1).split('\r\n');
+  assert.equal(lines[1], `"'=HYPERLINK(""http://x"")","Acme, Ltd",'01924263370,"line 1\nline 2",Call back,"said ""after 3""",2026-11-07 10:15`);
+  assert.ok(lines[2].startsWith("Bob,,'+12125550100,,To call,,"));
+  assert.equal(resultsFileName(l), 'Leads Nov - results.csv');
+  assert.equal(resultsFileName({ ...l, fileName: 'a/b:c.csv' }), 'a_b_c - results.csv');
 });
 
 test('stored data is checked before it is used', () => {

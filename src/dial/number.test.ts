@@ -19,6 +19,16 @@ test('dialableNumber keeps the barring: UK and extensions only, no 09', () => {
   for (const no of ['09011234567', '+12125550100', '07012345678', '07612345678', '08701234567', '08451234567', '12', '123456']) assert.equal(dialableNumber(no), null, no);
 });
 
+test('999 and 112 are never dialled from outside the app, a call list or desk phone mode', () => {
+  for (const e of ['999', '112', ' 999 ', 'Tel: 112']) {
+    const p = parseNumber(e);
+    assert.equal(p.ok, false, e);
+    if (!p.ok) assert.match(p.reason, /999 or 112/);
+  }
+  assert.equal(dialableNumber('999'), null);
+  assert.equal(num('1999'), '1999');
+});
+
 test('pasted numbers with spaces, brackets, dashes or +44 come out clean', () => {
   for (const s of ['01924 263370', '(01924) 263370', '01924-263-370', '01924.263370', '+44 1924 263370', '+44 (0)1924 263370', '+44 (0) 1924 263370',
     '0044 (0)1924 263370', '+441924263370', ' 01924 263370\n', '‪01924 263370‬', '01924–263370']) assert.equal(num(s), '01924263370', s);
