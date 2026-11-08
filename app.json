@@ -48,7 +48,14 @@
       "@config-plugins/react-native-callkeep",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
-      "expo-build-properties"
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
+          }
+        }
+      ]
     ],
     "scheme": "theonemspphone",
     "extra": {
