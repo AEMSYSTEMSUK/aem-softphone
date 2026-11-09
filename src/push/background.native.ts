@@ -8,10 +8,16 @@ import { getEngine } from '../state/phoneCore';
 // 3 Nov 2026: getEngine() wires the phone core first, so the 'incoming' event signs the lines in straight away (headless)
 // and voip1's INVITE reaches us while the lock screen is still ringing.
 if (Platform.OS === 'android' && (Constants.expoConfig?.extra as { pushAndroid?: boolean } | undefined)?.pushAndroid) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const messaging = require('@react-native-firebase/messaging').default;
-  messaging().setBackgroundMessageHandler(async (m: { data?: Record<string, unknown> }) => {
-    getEngine();
-    await handleIncomingPush(m.data);
-  });
+  // 9 Nov 2026: RNFirebase v27 has no default (namespaced) export - `.default()` threw at start-up and closed the app on
+  // launch. Modular API only, and never let push setup stop the app opening.
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fm = require('@react-native-firebase/messaging');
+    fm.setBackgroundMessageHandler(fm.getMessaging(), async (m: { data?: Record<string, unknown> }) => {
+      getEngine();
+      await handleIncomingPush(m.data);
+    });
+  } catch (e) {
+    console.warn('push: background handler not set', e);
+  }
 }

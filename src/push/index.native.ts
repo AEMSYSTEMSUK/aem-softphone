@@ -127,11 +127,17 @@ export async function registerPushToken(save: Save, isRegistered: () => boolean)
     if (!(Constants.expoConfig?.extra as { pushAndroid?: boolean } | undefined)?.pushAndroid) return; // built without Firebase
     if (Number(Platform.Version) >= 33) await PermissionsAndroid.request('android.permission.POST_NOTIFICATIONS' as never).catch(() => undefined);
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const messaging = require('@react-native-firebase/messaging').default;
-    const t = await messaging().getToken();
-    if (t) { await save('fcm', t); ready = true; }
-    messaging().onTokenRefresh((nt: string) => { save('fcm', nt).catch(() => undefined); });
-    messaging().onMessage((m: { data?: Record<string, unknown> }) => handleIncomingPush(m.data, { appActiveAndRegistered: isRegistered() }));
+    // 9 Nov 2026: RNFirebase v27 is modular-only (no `.default()`); a push failure must never break the app.
+    try {
+      const fm = require('@react-native-firebase/messaging');
+      const msg = fm.getMessaging();
+      const t = await fm.getToken(msg);
+      if (t) { await save('fcm', t); ready = true; }
+      fm.onTokenRefresh(msg, (nt: string) => { save('fcm', nt).catch(() => undefined); });
+      fm.onMessage(msg, (m: { data?: Record<string, unknown> }) => handleIncomingPush(m.data, { appActiveAndRegistered: isRegistered() }));
+    } catch (e) {
+      console.warn('push: FCM setup failed', e);
+    }
   } else if (Platform.OS === 'ios') {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const VoipPush = require('react-native-voip-push-notification').default;
