@@ -52,6 +52,8 @@
         "expo-build-properties",
         {
           "android": {
+            "enableMinifyInReleaseBuilds": false,
+            "enableShrinkResourcesInReleaseBuilds": false,
             "extraProguardRules": "-keep class org.webrtc.** { *; }\n-dontwarn org.webrtc.**"
           }
         }

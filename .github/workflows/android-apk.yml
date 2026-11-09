@@ -29,6 +29,8 @@ jobs:
       - name: Gradle assembleRelease
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+      - name: Name the APK
+        run: mv android/app/build/outputs/apk/release/app-release.apk android/app/build/outputs/apk/release/TheOneMSP-Phone.apk
       - uses: actions/upload-artifact@v4
         with:
           name: theonemsp-phone-apk
