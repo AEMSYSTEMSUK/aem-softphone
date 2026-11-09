@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+// 9 Nov 2026: react-native's SafeAreaView is iOS-only and deprecated - on Android (edge-to-edge) the header sat under the
+// status bar. safe-area-context pads for the status bar and the gesture/nav bar on both platforms.
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/state/AppContext';
 import DndBar from './src/components/DndBar';
@@ -58,11 +61,13 @@ function Shell() {
 
 export default function App() {
   return (
-    <AppProvider>
-      <SafeAreaView style={{ flex: 1, backgroundColor: colors.card }}>
-        <Shell />
-      </SafeAreaView>
-      <StatusBar style="dark" />
-    </AppProvider>
+    <SafeAreaProvider>
+      <AppProvider>
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.card }} edges={['top', 'bottom', 'left', 'right']}>
+          <Shell />
+        </SafeAreaView>
+        <StatusBar style="dark" />
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }
