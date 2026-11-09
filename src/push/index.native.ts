@@ -45,7 +45,8 @@ export async function setupCallKeep() {
   await RNCallKeep.setup({
     ios: { appName: APP_NAME, supportsVideo: false, maximumCallGroups: '1', maximumCallsPerCallGroup: '1', includesCallsInRecents: true },
     android: {
-      alertTitle: 'Allow calls', alertDescription: `${APP_NAME} needs to be a calling account so calls ring on your lock screen.`,
+      // 9 Nov 2026: on a Pixel the switch is one level down ("All calling accounts"), not under "Third-party apps".
+      alertTitle: 'Allow calls', alertDescription: `So calls ring on your lock screen: on the next screen tap "All calling accounts", then switch on ${APP_NAME}.`,
       cancelButton: 'Not now', okButton: 'Allow', additionalPermissions: [], selfManaged: false,
       foregroundService: { channelId: 'uk.co.aemsystems.theonemspphone.calls', channelName: 'Calls', notificationTitle: `${APP_NAME} call in progress` },
     },
