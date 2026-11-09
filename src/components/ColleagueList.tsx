@@ -8,6 +8,8 @@ import { colors } from './theme';
 // call screen's transfer panel (tap = pick them, then "Transfer now" or "Talk first"). Refreshes every 30 s while shown.
 const DOT: Record<Colleague['status'], { color: string; text: string }> = {
   online: { color: colors.green, text: 'Online' },
+  on_call: { color: '#e07b00', text: 'On a call' },
+  ringing: { color: colors.amber, text: 'Ringing' },
   dnd: { color: colors.red, text: 'Do not disturb' },
   offline: { color: '#9aa5b1', text: 'Offline' },
   unknown: { color: colors.amber, text: 'Status unknown' },
