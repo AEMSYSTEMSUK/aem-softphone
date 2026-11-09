@@ -62,7 +62,7 @@ export default function ContactsScreen() {
             <Text style={[s.h2, { marginBottom: 4 }]}>Colleagues</Text>
             <ColleagueList accountId={currentAccountId} onPick={(c) => dial(c.extension, currentAccountId)} />
           </View>
-        ) : null}
+        ) : undefined}
         ListEmptyComponent={!busy ? <Text style={s.muted}>{q ? 'Nobody found.' : 'Type to search your contacts.'}</Text> : undefined}
         renderItem={({ item }) => (
           <View style={s.card}>
