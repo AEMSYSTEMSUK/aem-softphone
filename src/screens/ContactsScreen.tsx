@@ -6,6 +6,7 @@ import type { Contact } from '../api/types';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
 import { useDial } from '../state/useDial';
+import ColleagueList from '../components/ColleagueList';
 
 const SOURCE: Record<Contact['source'], string> = { one: 'ONE phone book', m365: 'Microsoft 365', customers: 'Customer', phone: 'Phone' };
 
@@ -23,7 +24,7 @@ async function phoneContacts(q: string): Promise<Contact[]> {
 }
 
 export default function ContactsScreen() {
-  const { me } = useApp();
+  const { me, currentAccountId } = useApp();
   const dial = useDial();
   const [q, setQ] = useState('');
   const [items, setItems] = useState<Contact[]>([]);
@@ -56,6 +57,12 @@ export default function ContactsScreen() {
         data={items}
         keyExtractor={(c) => c.id}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
+        ListHeaderComponent={!q ? (
+          <View style={[s.card, { marginBottom: 12 }]}>
+            <Text style={[s.h2, { marginBottom: 4 }]}>Colleagues</Text>
+            <ColleagueList accountId={currentAccountId} onPick={(c) => dial(c.extension, currentAccountId)} />
+          </View>
+        ) : null}
         ListEmptyComponent={!busy ? <Text style={s.muted}>{q ? 'Nobody found.' : 'Type to search your contacts.'}</Text> : undefined}
         renderItem={({ item }) => (
           <View style={s.card}>

@@ -49,6 +49,10 @@ export interface SipConfig {
   fetchError: string | null;
 }
 
+// GET /colleagues (9 Nov 2026): other extensions on the same phone company, with live status from voip1 + ONE.
+export interface Colleague { extension: string; name: string | null; status: 'online' | 'dnd' | 'offline' | 'unknown' }
+export interface Colleagues { companyKey: string | null; companyName: string | null; liveError: string | null; people: Colleague[] }
+
 export interface Contact {
   id: string;
   name: string;

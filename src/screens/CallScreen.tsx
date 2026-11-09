@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import ColleagueList from '../components/ColleagueList';
 import * as api from '../api/client';
 import { cleanDialString, type CallInfo } from '../sip';
 import * as audio from '../audio';
@@ -130,6 +131,11 @@ export default function CallScreen() {
               <Btn small label="Talk first" onPress={talkFirst} disabled={!cleanDialString(xfer)} />
               <Btn small label="Transfer now" color={colors.green} text="#fff" onPress={transferNow} disabled={!cleanDialString(xfer)} />
             </View>
+            {/* 9 Nov 2026: pick a colleague instead of typing - then Transfer now (blind) or Talk first (hold, speak, Complete). */}
+            <Text style={{ color: '#cfe0f5', marginTop: 12, marginBottom: 4, alignSelf: 'flex-start' }}>Or pick a colleague</Text>
+            <ScrollView style={{ maxHeight: 220, alignSelf: 'stretch' }}>
+              <ColleagueList dark accountId={call.accountId} selected={xfer} onPick={(c) => setXfer(c.extension)} />
+            </ScrollView>
           </View>
         )}
 
