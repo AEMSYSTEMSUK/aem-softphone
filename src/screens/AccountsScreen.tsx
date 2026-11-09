@@ -7,6 +7,7 @@ import { useApp } from '../state/AppContext';
 import { StubSipEngine } from '../sip';
 import { lineHealth } from '../state/lineStatus';
 import { setupOpener } from '../state/setupOpener';
+import CompanyBadge from '../components/CompanyBadge';
 
 const REG: Record<string, { text: string; color: string }> = {
   registered: { text: 'Connected', color: colors.green },
@@ -41,7 +42,8 @@ export default function AccountsScreen() {
         return (
           <TouchableOpacity key={a.id} style={[s.card, selected && { borderColor: colors.brand, borderWidth: 2 }]} onPress={() => setCurrentAccountId(a.id)}>
             <View style={s.row}>
-              <View style={{ flex: 1 }}>
+              <CompanyBadge name={a.companyName} logoUrl={a.logoUrl} size={40} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
                 <Text style={s.h2}>{a.companyName}</Text>
                 <Text style={s.muted}>{a.label !== a.companyName ? `${a.label} · ` : ''}ext {a.extension || '-'}{a.callerId ? ` · shows ${a.callerId}` : ''}</Text>
               </View>

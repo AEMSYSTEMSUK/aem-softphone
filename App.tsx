@@ -3,6 +3,7 @@ import { ActivityIndicator, SafeAreaView, Text, TouchableOpacity, View } from 'r
 import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/state/AppContext';
 import DndBar from './src/components/DndBar';
+import CompanyHeader from './src/components/CompanyHeader';
 import { colors } from './src/components/theme';
 import LoginScreen from './src/screens/LoginScreen';
 import AccountsScreen from './src/screens/AccountsScreen';
@@ -40,6 +41,7 @@ function Shell() {
   const Active = TABS.find((t) => t.key === tab)!.C;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <CompanyHeader />
       <DndBar />
       <View style={{ flex: 1 }}><Active /></View>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card }}>
