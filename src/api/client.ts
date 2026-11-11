@@ -103,7 +103,17 @@ export const savePushToken = (kind: 'apns_voip' | 'apns' | 'fcm', token: string 
   api<{ saved: boolean }>('/device/push', { method: 'PUT', body: JSON.stringify({ kind, token }) });
 
 // Voicemail audio needs the Bearer header; expo-audio accepts {uri, headers}.
+// On web/desktop expo-audio's player ignores headers (only its preload uses them), so fetch the audio ourselves and play
+// it from a blob: URL.
+let lastBlobUrl: string | null = null;
 export async function voicemailSource(id: string) {
   if (!accessToken || Date.now() > accessExpiresAt) await refreshOnce();
-  return { uri: `${API_BASE}/softphone/voicemail/${encodeURIComponent(id)}/audio`, headers: { Authorization: `Bearer ${accessToken}` } };
+  const uri = `${API_BASE}/softphone/voicemail/${encodeURIComponent(id)}/audio`;
+  if (Platform.OS !== 'web') return { uri, headers: { Authorization: `Bearer ${accessToken}` } };
+  let r = await fetch(uri, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (r.status === 401 && await refreshOnce()) r = await fetch(uri, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) throw new Error(`Could not load voicemail audio (${r.status})`);
+  if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+  lastBlobUrl = URL.createObjectURL(await r.blob());
+  return { uri: lastBlobUrl };
 }

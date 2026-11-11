@@ -28,7 +28,7 @@ export default function VoicemailScreen() {
 
   const play = async (v: Voicemail) => {
     if (playing === v.id && status.playing) { player.pause(); return; }
-    player.replace(await api.voicemailSource(v.id));
+    try { setErr(null); player.replace(await api.voicemailSource(v.id)); } catch (e) { setErr(e instanceof Error ? e.message : 'Could not play voicemail'); return; }
     player.play();
     setPlaying(v.id);
     if (v.isNew) setNewVoicemail((n) => Math.max(0, n - 1));
