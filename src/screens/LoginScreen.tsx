@@ -5,6 +5,7 @@ import * as api from '../api/client';
 import { APP_NAME, APP_SCHEME, SSO_RETURN_URL } from '../config';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
+import * as desktop from '../desktop/bridge';
 
 // Spec decision 3: ONE login - Microsoft (any Microsoft 365 work account: AEM staff or a customer's, through ONE's
 // multi-tenant partner app) or the app password AEM gives people without Microsoft 365.
@@ -31,6 +32,13 @@ export default function LoginScreen() {
   };
 
   const microsoft = () => withBusy(async () => {
+    if (Platform.OS === 'web') {
+      // Desktop: main.js runs the sign-in in its own window and hands back the code from theonemspphone://sso.
+      const d = await desktop.microsoftSignIn(api.microsoftStartUrl());
+      if (!d?.code) throw new Error(SSO_ERRORS[d?.error || ''] || `Microsoft sign-in failed (${d?.error || 'no code'})`);
+      await api.exchangeSsoCode(d.code);
+      return;
+    }
     const r = await WebBrowser.openAuthSessionAsync(api.microsoftStartUrl(), SSO_RETURN_URL);
     if (r.type !== 'success') throw new Error('Microsoft sign-in was cancelled');
     const q = new URL(r.url.replace(`${APP_SCHEME}://`, 'https://app/')).searchParams;
@@ -45,8 +53,8 @@ export default function LoginScreen() {
         <Text style={[s.h1, { color: colors.brand, marginBottom: 4 }]}>{APP_NAME}</Text>
         <Text style={[s.muted, { marginBottom: 24 }]}>Sign in with your ONE phone login.</Text>
 
-        {/* Desktop (3 Nov 2026): Microsoft sign-in returns to theonemspphone://, which the desktop app doesn't take yet - app password there. */}
-        {Platform.OS !== 'web' ? (
+        {/* Desktop 0.3.3 (11 Nov 2026): Microsoft sign-in through the Electron bridge. A plain browser / older desktop: app password. */}
+        {Platform.OS !== 'web' || desktop.canMicrosoftSignIn() ? (
           <>
             <TouchableOpacity style={s.btn} onPress={microsoft} disabled={busy} accessibilityRole="button">
               <Text style={s.btnText}>Sign in with Microsoft</Text>

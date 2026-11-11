@@ -6,7 +6,8 @@
 // 6 Nov 2026: dial from anywhere. tel: / callto: links and a global hotkey on selected text (dial.js) hand a number to the
 // page, which sends it to the desk phone or asks first on this computer (src/components/DialHost.tsx). The hotkey is
 // Windows only for now: macOS needs its own way to press Copy and the Accessibility permission.
-// Still to do: Microsoft sign-in (theonemspphone:// protocol), keychain via safeStorage, auto-update, code signing.
+// 11 Nov 2026 (0.3.3): Microsoft sign-in in a window of its own (microsoftSignIn below).
+// Still to do: keychain via safeStorage, auto-update.
 const { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, protocol, net, session, shell } = require('electron');
 const { execFile } = require('node:child_process');
 const fs = require('node:fs');
@@ -149,6 +150,42 @@ ipcMain.handle('phone:hotkey-set', (e, value) => {
 ipcMain.on('phone:dial-ready', (e, on) => { if (trusted(e)) { dialReady = on === true; flushDial(); } });
 ipcMain.on('phone:bring-forward', (e) => { if (trusted(e)) showWindow(); });
 ipcMain.on('phone:open-default-apps', (e) => { if (trusted(e) && process.platform === 'win32') shell.openExternal('ms-settings:defaultapps'); });
+
+// ---------- Microsoft sign-in (11 Nov 2026) ----------
+// ONE's /api/softphone/auth/microsoft -> Microsoft -> ONE's callback, which 302s to theonemspphone://sso?code=... (or
+// ?error=...). Instead of registering that protocol with Windows, the sign-in runs in a small window of our own and we
+// catch the redirect to theonemspphone:// before it goes anywhere. The window gets its own throwaway session, no preload
+// and no Node, and only ONE's own start URL is accepted from the page.
+const SSO_RETURN = 'theonemspphone://sso';
+const SSO_START = /^https:\/\/[a-z0-9.-]+(:\d+)?\/api\/softphone\/auth\/microsoft$/i;
+let ssoWin = null;
+
+function microsoftSignIn(startUrl) {
+  if (!SSO_START.test(String(startUrl || ''))) return Promise.resolve({ error: 'bad_start' });
+  if (ssoWin) { ssoWin.focus(); return Promise.resolve({ error: 'busy' }); }
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (result) => { if (done) return; done = true; resolve(result); if (ssoWin && !ssoWin.isDestroyed()) ssoWin.destroy(); ssoWin = null; };
+    ssoWin = new BrowserWindow({
+      width: 520, height: 700, parent: win || undefined, modal: !!win, title: 'Sign in with Microsoft', autoHideMenuBar: true,
+      webPreferences: { partition: 'ms-signin', contextIsolation: true, nodeIntegration: false, sandbox: true },
+    });
+    ssoWin.removeMenu();
+    const watch = (e, url) => {
+      if (!String(url).startsWith(SSO_RETURN)) return;
+      e.preventDefault();
+      const q = new URL(String(url).replace('theonemspphone://', 'https://app/')).searchParams;
+      finish({ code: q.get('code') || null, error: q.get('error') || null });
+    };
+    ssoWin.webContents.on('will-redirect', watch);
+    ssoWin.webContents.on('will-navigate', watch);
+    ssoWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+    ssoWin.on('closed', () => { ssoWin = null; finish({ error: 'cancelled' }); });
+    ssoWin.loadURL(startUrl).catch(() => { /* a redirect we stopped shows as an aborted load - finish() already ran */ });
+  });
+}
+
+ipcMain.handle('phone:microsoft-signin', (e, startUrl) => (trusted(e) ? microsoftSignIn(startUrl) : { error: 'untrusted' }));
 
 // Renderer -> main: an incoming call started / stopped ringing.
 ipcMain.on('phone:ringing', (_e, on, title) => {

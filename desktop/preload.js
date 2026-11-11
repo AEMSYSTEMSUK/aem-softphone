@@ -22,4 +22,6 @@ contextBridge.exposeInMainWorld('oneMspPhone', {
   getHotkey: () => ipcRenderer.invoke('phone:hotkey-get'),
   setHotkey: (accelerator) => ipcRenderer.invoke('phone:hotkey-set', text(accelerator, 40)),
   openDefaultApps: () => ipcRenderer.send('phone:open-default-apps'),
+  // Microsoft sign-in in a window of its own; resolves { code } or { error }. main.js only accepts ONE's start URL.
+  microsoftSignIn: (startUrl) => ipcRenderer.invoke('phone:microsoft-signin', text(startUrl, 300)),
 });

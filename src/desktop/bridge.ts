@@ -10,6 +10,7 @@ interface Bridge {
   getHotkey: () => Promise<HotkeyStatus>;
   setHotkey: (accelerator: string) => Promise<HotkeyStatus>;
   openDefaultApps: () => void;
+  microsoftSignIn?: (startUrl: string) => Promise<{ code?: string | null; error?: string | null }>;
 }
 
 const bridge = () => (globalThis as unknown as { oneMspPhone?: Bridge }).oneMspPhone;
@@ -20,3 +21,6 @@ export const bringForward = () => bridge()?.bringForward?.();
 export const getHotkey = async () => (await bridge()?.getHotkey?.()) ?? null;
 export const setHotkey = async (a: string) => (await bridge()?.setHotkey?.(a)) ?? null;
 export const openDefaultApps = () => bridge()?.openDefaultApps?.();
+// Desktop app 0.3.3+: Microsoft sign-in in an Electron window. Null when this shell can't (older desktop, plain browser).
+export const canMicrosoftSignIn = () => typeof bridge()?.microsoftSignIn === 'function';
+export const microsoftSignIn = async (startUrl: string) => (await bridge()?.microsoftSignIn?.(startUrl)) ?? null;
