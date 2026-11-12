@@ -6,7 +6,7 @@
 // 6 Nov 2026: dial from anywhere. tel: / callto: links and a global hotkey on selected text (dial.js) hand a number to the
 // page, which sends it to the desk phone or asks first on this computer (src/components/DialHost.tsx). The hotkey is
 // Windows only for now: macOS needs its own way to press Copy and the Accessibility permission.
-// 11 Nov 2026 (0.3.3): Microsoft sign-in in a window of its own (microsoftSignIn below).
+// 11 Nov 2026 (0.3.3): Microsoft sign-in in a window of its own (microsoftSignIn below). 0.3.4: passkeys work there.
 // Still to do: keychain via safeStorage, auto-update.
 const { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, protocol, net, session, shell } = require('electron');
 const { execFile } = require('node:child_process');
@@ -160,6 +160,13 @@ const SSO_RETURN = 'theonemspphone://sso';
 const SSO_START = /^https:\/\/[a-z0-9.-]+(:\d+)?\/api\/softphone\/auth\/microsoft$/i;
 let ssoWin = null;
 
+// 12 Nov 2026 (0.3.4): Microsoft refused passkey sign-in ("this app doesn't support it") because the window said it was
+// Electron. It is the same Chromium, with the same Windows Hello passkey support, so it presents as plain Chrome.
+const chromeUserAgent = () => {
+  const os = process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : process.platform === 'win32' ? 'Windows NT 10.0; Win64; x64' : 'X11; Linux x86_64';
+  return `Mozilla/5.0 (${os}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
+};
+
 function microsoftSignIn(startUrl) {
   if (!SSO_START.test(String(startUrl || ''))) return Promise.resolve({ error: 'bad_start' });
   if (ssoWin) { ssoWin.focus(); return Promise.resolve({ error: 'busy' }); }
@@ -171,6 +178,9 @@ function microsoftSignIn(startUrl) {
       webPreferences: { partition: 'ms-signin', contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
     ssoWin.removeMenu();
+    const ua = chromeUserAgent();
+    session.fromPartition('ms-signin').setUserAgent(ua);
+    ssoWin.webContents.setUserAgent(ua);
     const watch = (e, url) => {
       if (!String(url).startsWith(SSO_RETURN)) return;
       e.preventDefault();
