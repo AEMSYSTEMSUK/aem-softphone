@@ -1,13 +1,13 @@
 {
   "name": "theonemsp-phone-desktop",
   "productName": "The One MSP Phone",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "private": true,
   "description": "The One MSP Phone desktop app (Electron) - loads the web export of the app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "copy-dist": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.cpSync('../dist','dist',{recursive:true});fs.copyFileSync('../assets/icon.png','icon.png')\"",
+    "copy-dist": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.cpSync('../dist','dist',{recursive:true});fs.copyFileSync('../assets/desktop-icon.png','icon.png')\"",
     "dist:win": "npm run copy-dist && electron-builder --win nsis --publish never",
     "dist:win:signed": "npm run copy-dist && electron-builder --win nsis --publish never --config electron-builder.signed.js"
   },
