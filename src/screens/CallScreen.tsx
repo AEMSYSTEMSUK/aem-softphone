@@ -6,6 +6,7 @@ import { cleanDialString, type CallInfo } from '../sip';
 import * as audio from '../audio';
 import { colors } from '../components/theme';
 import { useApp } from '../state/AppContext';
+import { MOVE_CODE } from '../sip/move';
 
 // Ringing / in-call screen. Spec 6 A: shows the company being called (+ which line was dialled) AND who is calling.
 // 3 Nov 2026: audio output (phone / speaker / headset / Bluetooth), call waiting (answer and hold the first call, swap),
@@ -122,7 +123,12 @@ export default function CallScreen() {
 
         {xfer !== null && !ringingIn && (
           <View style={{ width: 320, alignItems: 'center' }}>
-            <Text style={{ color: '#cfe0f5', marginBottom: 8, textAlign: 'center' }}>Transfer to an extension (e.g. 201) or a number</Text>
+            {/* 13 Nov 2026: one tap - voip1 wakes the person's other device(s) and rings them; this one stays quiet. */}
+            <TouchableOpacity onPress={() => { engine.transfer(call.id, MOVE_CODE); setXfer(null); }} accessibilityLabel="Move to my other device"
+              style={{ marginBottom: 14, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 24, backgroundColor: colors.green }}>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>Move to my other device</Text>
+            </TouchableOpacity>
+            <Text style={{ color: '#cfe0f5', marginBottom: 8, textAlign: 'center' }}>Or transfer to an extension (e.g. 201) or a number</Text>
             <TextInput value={xfer} onChangeText={setXfer} keyboardType="phone-pad" autoFocus placeholder="201"
               placeholderTextColor="#9fb3cc" accessibilityLabel="Transfer to"
               style={{ width: 220, fontSize: 24, color: '#fff', borderBottomWidth: 1, borderBottomColor: '#cfe0f5', textAlign: 'center', paddingVertical: 6 }} />

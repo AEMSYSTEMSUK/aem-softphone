@@ -3,6 +3,7 @@ import * as JsSIP from 'jssip';
 import type { RTCSession } from 'jssip/lib/RTCSession';
 import type { IncomingRequest } from 'jssip/lib/SIPMessage';
 import { CallInfo, EngineConfig, Emitter, RegState, SipAccountConfig, SipEngine, SipEvent } from './SipEngine';
+import { justMoved, markMoved, MOVE_CODE } from './move';
 
 // Real calling: JsSIP (MIT, maintained) over SIP-over-WebSocket to voip1 (Wazo / Asterisk PJSIP WSS transport), media by
 // WebRTC (react-native-webrtc on phones, Chromium in Electron). One JsSIP UA = one company account registration.
@@ -92,6 +93,9 @@ export class JsSipEngine implements SipEngine {
     ua.on('newRTCSession', (e: { originator: string; session: RTCSession; request: unknown }) => {
       if (e.originator !== 'remote') return; // outgoing sessions are tracked in call()
       const req = e.request as IncomingRequest;
+      // 13 Nov 2026: this device just moved the call away - its copy of the moved call is left unanswered (no ring,
+      // no screen); voip1 cancels it when the other device answers. Rejecting it could end the move for every device.
+      if (header(req, 'X-AEM-Move') === '1' && justMoved()) return;
       const id = e.session.id;
       // spec 6 A: voip1 adds X-AEM-Company / X-AEM-DID / X-AEM-Caller on the leg to the app (milestone 2 dialplan work).
       const info: CallInfo = {
@@ -171,6 +175,7 @@ export class JsSipEngine implements SipEngine {
   transfer(id: string, target: string) {
     const l = this.live.get(id);
     if (!l || !this.cfg) return;
+    if (target === MOVE_CODE) markMoved();
     l.session.refer(`sip:${target}@${this.cfg.sipDomain}`, {
       eventHandlers: {
         accepted: () => { try { l.session.terminate(); } catch { /* already gone */ } },
