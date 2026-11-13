@@ -2,6 +2,7 @@ import { AppState, PermissionsAndroid, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import RNCallKeep from 'react-native-callkeep';
 import { APP_NAME } from '../config';
+import { justMoved } from '../sip/move';
 
 // #230 milestone 2 (1 Nov 2026): ringing when the app is asleep. ONE (softphone-push.service.ts) sends
 //   Android: FCM high-priority data message  -> setBackgroundMessageHandler (index.ts) / onMessage -> handleIncomingPush
@@ -81,6 +82,8 @@ export async function handleIncomingPush(data: Record<string, unknown> | undefin
   const uuid = str(data.uuid).toLowerCase();
   if (!uuid || pending.has(uuid)) return;
   ready = true;
+  // 13 Nov 2026: a "Move to my other device" push that this phone sent itself - the call is leaving this phone.
+  if (str(data.move) === '1' && justMoved()) { if (Platform.OS === 'ios') RNCallKeep.endCall(uuid); return; }
   // Old push (phone was offline for a while): the caller has gone, don't ring.
   if (Number(data.sentAt) && Date.now() - Number(data.sentAt) > 45_000) { if (Platform.OS === 'ios') RNCallKeep.endCall(uuid); return; }
   await setupCallKeep();
