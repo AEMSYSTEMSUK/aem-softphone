@@ -74,7 +74,7 @@ the voip1 script; (5) iPhone: after the Apple Developer enrolment, APNs key (.p8
   the window forward and flash the taskbar, microphone + notifications only. App-password sign-in (Microsoft sign-in on
   desktop is not wired yet). ONE allows the `app://phone` origin (backend app.ts CORS) - needs that backend deploy.
   Build: `npm run export:web`, then in `desktop/`: `npm install`, `npm run dist:win` -> `desktop/release/The One MSP
-  Phone Setup <ver>.exe` (UNSIGNED - sign with Azure Trusted Signing before giving it to customers).
+  Phone Setup <ver>.exe` (UNSIGNED - for a signed one use `desktop\build\release.ps1`, see 7 Nov below).
 - Web dialogs: `src/components/ask.ts` (Alert.alert does nothing in a browser).
 
 ### Big Property Sale lines (checked read-only on voip1, 3 Nov 2026)
@@ -84,6 +84,50 @@ an extension work). The BPS menu dials `Local/bps20x-app@cust-app` for 25 s. voi
 version (rings only a registered app - no push wait) until `ops/voip1/app-push/cust-app-push.py` is applied.
 Note: an internal call / transfer to 200-202 rings the Wazo user directly (not through [cust-app]), so it reaches the
 app only while it is registered (open), push or not.
+
+## 6 Nov 2026: click to dial (desktop) and call lists
+
+Like VIP's Companion: a number goes to the app, the desk phone rings, and picking it up calls the number. **Not yet tested
+with a real call, hotkey or installer.**
+
+**Call from.** Keypad, Contacts, Recents and Call list show "Call from: Desk phone / This computer" for the selected
+company, remembered per account on this device. An account with a desk phone starts on Desk phone. Phones, and accounts
+with no desk phone, don't show the choice. ONE says who has one: `GET /api/softphone/desk-phones` looks for the line
+`<key><ext>` (the app line without `-app`) on voip1, so people with no `-app` line on voip1 yet can still use their
+desk phone from the app, as long as they have an account in ONE.
+
+**Desk phone calls.** `POST /api/softphone/desk-dial` with `{ accountId, number }`. ONE works out the line from the
+signed-in person's own account, applies the phone book's barring (UK and extensions, no 09) and logs `click_to_dial`.
+voip1 rings the handset and only dials after it is answered, with Wazo's auto-answer off. A handset set to answer by
+itself would defeat that.
+
+**Numbers from outside the app.** `tel:` and `callto:` links, and a hotkey (default Ctrl+Shift+D, change it in Settings)
+that copies the selected text in any app and puts the clipboard back. Desk phone mode sends straight away, because
+picking up is the confirmation. This computer shows a confirm box first. Anything that isn't a number only shows a
+message. The Keypad also takes a typed or pasted number in any format: Enter or Call dials it.
+- After installing, Windows needs the app choosing once for TEL and CALLTO (Settings > Dial from anywhere has the link).
+- The hotkey presses Ctrl+C through a hidden PowerShell (.NET SendKeys), so no native module. Windows only: macOS needs
+  its own copy step and the Accessibility permission. A locked-down PC (PowerShell blocked, or antivirus stopping
+  SendKeys) gets a "paste it into the Keypad" message.
+- The clipboard's text, HTML, RTF and picture are put back. Other things on it, such as files copied in Explorer, aren't.
+
+**Call list** (`src/calllist/`, desktop tab). Import .csv or .xlsx (first sheet with data, up to 5,000 rows and 10 MB),
+map the columns, numbers are cleaned, duplicates dropped, and rows that can't be used are listed with the reason. Then
+click to call, mark done / no answer / call back with a note, Next, progress, delete. **Stored only on this computer**
+(the app's local storage, not encrypted, kept per signed-in person after sign-out), never in ONE. xlsx is read with
+`read-excel-file` (MIT) after a check on the zip's unpacked size. Formulas aren't run, and cells stay plain text.
+
+**7 Nov 2026 additions.** Call list **Export** saves the results (outcome, note, when) as a .csv for Excel; cells that
+start like a formula get a leading `'` so Excel shows them as text. Notes are written once typing stops, not per key.
+999 and 112 are never dialled from a call list, a link, the hotkey or desk phone mode ("dial on the phone itself"); the
+Keypad on This computer still dials them, as before. ONE (backend `c39a25d`) refuses them too, and voip1 refuses any
+click-to-dial request that sat in the queue more than 20 s, so a slow queue can't ring a desk phone late.
+
+**Release (desktop).** One command, from the repo root in a PowerShell window after `Connect-AzAccount`:
+`.\desktop\build\release.ps1` (add `-Version 0.3.1` to bump first). It exports the web build, runs electron-builder with
+Azure Trusted Signing (`desktop/electron-builder.signed.js`: account `aemsystems-signing`, profile `aemsystems-public`,
+same as the Windows agent) and stops unless the installer and the app exe are both Authenticode-Valid. `-Unsigned` makes a
+local test build only.
 
 ## Architecture
 
@@ -126,7 +170,10 @@ app only while it is registered (open), push or not.
 | `src/sip/StubSipEngine.ts` | Simulated calls (Expo Go, UI work, `EXPO_PUBLIC_SIP_STUB=1`) |
 | `src/sip/webrtc(.native).ts` | Registers react-native-webrtc globals on phones (no-op on web) |
 | `src/screens/` | Login, Accounts, Dialer, Contacts, History (Recents), Voicemail, Call (ringing / in-call) |
-| `desktop/` | Electron shell **stub**. Loads the web export of the same UI |
+| `src/dial/` | Number clean-up (same rules as ONE) and the Call from rules, with tests |
+| `src/calllist/` | Call list: spreadsheet parsing and limits, the list itself, with tests |
+| `src/desktop/bridge.ts` | Typed view of the Electron bridge (`desktop/preload.js`) |
+| `desktop/` | Electron shell. Loads the web export of the same UI. `dial.js` = links and hotkey logic, with tests |
 
 ### SIP library choice
 

@@ -130,14 +130,27 @@ export class JsSipEngine implements SipEngine {
     session.on('muted', () => this.update(info.id, { muted: true }));
     session.on('unmuted', () => this.update(info.id, { muted: false }));
     // Browser / Electron: play the far end through an <audio> element. react-native-webrtc plays it natively.
+    // For outgoing calls JsSIP creates the peer connection INSIDE ua.call(), before we get here, so 'peerconnection' has
+    // already fired - use session.connection when it exists. Keep the element referenced until the call ends.
     if (Platform.OS === 'web') {
-      session.on('peerconnection', (e: { peerconnection: RTCPeerConnection }) => {
-        e.peerconnection.addEventListener('track', (t: RTCTrackEvent) => {
-          const el = new (globalThis as unknown as { Audio: new () => HTMLAudioElement }).Audio();
+      let el: HTMLAudioElement | null = null;
+      const attach = (pc: RTCPeerConnection) => {
+        const play = (stream: MediaStream) => {
+          if (!el) el = new (globalThis as unknown as { Audio: new () => HTMLAudioElement }).Audio();
           el.autoplay = true;
-          el.srcObject = t.streams[0];
-        });
-      });
+          el.srcObject = stream;
+          el.play().catch(() => { /* autoplay refused - retried on the next track */ });
+        };
+        pc.addEventListener('track', (t: RTCTrackEvent) => play(t.streams[0] || new MediaStream([t.track])));
+        const live = pc.getReceivers().map((r) => r.track).filter((t) => t && t.kind === 'audio');
+        if (live.length) play(new MediaStream(live));
+      };
+      const pc = (session as unknown as { connection?: RTCPeerConnection }).connection;
+      if (pc) attach(pc);
+      else session.on('peerconnection', (e: { peerconnection: RTCPeerConnection }) => attach(e.peerconnection));
+      const stop = () => { if (el) { el.pause(); el.srcObject = null; el = null; } };
+      session.on('ended', stop);
+      session.on('failed', stop);
     }
     this.ev.emit({ type: 'call', call: info });
   }

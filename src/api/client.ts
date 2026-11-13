@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { API_BASE, APP_VERSION } from '../config';
 import { deleteItem, getItem, setItem } from './storage';
-import type { Colleagues, Contact, HistoryItem, Me, SipConfig, TokenPair, Voicemail, WeekHours } from './types';
+import type { Colleagues, Contact, DeskPhone, HistoryItem, Me, SipConfig, TokenPair, Voicemail, WeekHours } from './types';
 
 // Thin client for ONE's /api/softphone. Access token in memory only; refresh token in the keychain, rotated by ONE on
 // every refresh. Any 401 tries one refresh, then signs out (onSignedOut) - e.g. after "revoke this phone" in ONE.
@@ -95,13 +95,26 @@ export const getVoicemail = () => api<{ items: Voicemail[] }>('/voicemail');
 export const getColleagues = (accountId?: number | null) => api<Colleagues>(`/colleagues${accountId ? `?accountId=${accountId}` : ''}`);
 export const setDnd = (mode: 'off' | 'on' | '1h' | '2h' | 'until_tomorrow', accountId?: number) =>
   api<Me>('/dnd', { method: 'PUT', body: JSON.stringify({ mode, accountId }) });
-export const saveSettings = (body: { hoursEnabled?: boolean; workingHours?: WeekHours | null; skipBankHolidays?: boolean; contactSources?: Record<string, boolean>; accountId?: number }) =>
+export const saveSettings = (body: { hoursEnabled?: boolean; workingHours?: WeekHours | null; skipBankHolidays?: boolean; contactSources?: Record<string, boolean>; accountId?: number; followUser?: boolean }) =>
   api<Me>('/settings', { method: 'PUT', body: JSON.stringify(body) });
+export const getDeskPhones = () => api<{ accounts: DeskPhone[] }>('/desk-phones');
+// ONE rings this account's desk phone, and dials once it is picked up.
+export const deskDial = (accountId: number, number: string) => api<{ number: string }>('/desk-dial', { method: 'POST', body: JSON.stringify({ accountId, number }) });
 export const savePushToken = (kind: 'apns_voip' | 'apns' | 'fcm', token: string | null) =>
   api<{ saved: boolean }>('/device/push', { method: 'PUT', body: JSON.stringify({ kind, token }) });
 
 // Voicemail audio needs the Bearer header; expo-audio accepts {uri, headers}.
+// On web/desktop expo-audio's player ignores headers (only its preload uses them), so fetch the audio ourselves and play
+// it from a blob: URL.
+let lastBlobUrl: string | null = null;
 export async function voicemailSource(id: string) {
   if (!accessToken || Date.now() > accessExpiresAt) await refreshOnce();
-  return { uri: `${API_BASE}/softphone/voicemail/${encodeURIComponent(id)}/audio`, headers: { Authorization: `Bearer ${accessToken}` } };
+  const uri = `${API_BASE}/softphone/voicemail/${encodeURIComponent(id)}/audio`;
+  if (Platform.OS !== 'web') return { uri, headers: { Authorization: `Bearer ${accessToken}` } };
+  let r = await fetch(uri, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (r.status === 401 && await refreshOnce()) r = await fetch(uri, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!r.ok) throw new Error(`Could not load voicemail audio (${r.status})`);
+  if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+  lastBlobUrl = URL.createObjectURL(await r.blob());
+  return { uri: lastBlobUrl };
 }

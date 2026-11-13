@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AccountPicker from '../components/AccountPicker';
+import CallFromPicker from '../components/CallFromPicker';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
 import { useDial } from '../state/useDial';
+import { dialPadText } from '../dial/number';
 
 const KEYS = [['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9'], ['*', '0', '#']];
 
@@ -16,9 +18,16 @@ export default function DialerScreen() {
   return (
     <View style={s.screen}>
       <AccountPicker />
+      <CallFromPicker />
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 }}>
         <Text style={[s.small, { marginBottom: 6 }]}>{acc ? `Calling as ${acc.companyName}${acc.callerId ? ` (${acc.callerId})` : ''}` : 'No account selected'}</Text>
-        <Text style={{ fontSize: 32, minHeight: 44, color: colors.text, letterSpacing: 1 }} numberOfLines={1} adjustsFontSizeToFit>{num || ' '}</Text>
+        {/* Desktop: type or paste in any format, Enter calls. Phones keep the keypad, with no keyboard popping up over it. */}
+        {Platform.OS === 'web' ? (
+          <TextInput value={num} onChangeText={(t) => setNum(dialPadText(t))} onSubmitEditing={() => { if (num) dial(num); }} autoFocus placeholder="Type or paste a number" accessibilityLabel="Number to call"
+            style={{ fontSize: 28, minHeight: 44, color: colors.text, letterSpacing: 1, textAlign: 'center', alignSelf: 'stretch' }} />
+        ) : (
+          <Text style={{ fontSize: 32, minHeight: 44, color: colors.text, letterSpacing: 1 }} numberOfLines={1} adjustsFontSizeToFit>{num || ' '}</Text>
+        )}
         <View style={{ marginTop: 16 }}>
           {KEYS.map((row) => (
             <View key={row.join('')} style={s.row}>

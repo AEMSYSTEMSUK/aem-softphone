@@ -23,6 +23,9 @@ export interface Account {
   status: RingStatus;
 }
 
+// GET /desk-phones: 'none' = no desk phone on the account, 'unknown' = voip1 couldn't be asked just now.
+export interface DeskPhone { accountId: number; status: 'online' | 'offline' | 'none' | 'unknown'; label: string | null }
+
 export interface Me {
   user: { id: number; name: string; email: string; isStaff: boolean; hasAppPassword: boolean; microsoftLinked: boolean };
   settings: { dnd: Dnd; hoursEnabled: boolean; workingHours: WeekHours | null; skipBankHolidays: boolean; contactSources: { one: boolean; m365: boolean; phone: boolean } };

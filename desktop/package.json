@@ -1,22 +1,37 @@
 {
   "name": "theonemsp-phone-desktop",
   "productName": "The One MSP Phone",
-  "version": "0.2.0",
+  "version": "0.3.6",
   "private": true,
   "description": "The One MSP Phone desktop app (Electron) - loads the web export of the app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "copy-dist": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.cpSync('../dist','dist',{recursive:true});fs.copyFileSync('../assets/icon.png','icon.png')\"",
-    "dist:win": "npm run copy-dist && electron-builder --win nsis --publish never"
+    "copy-dist": "node -e \"const fs=require('fs');fs.rmSync('dist',{recursive:true,force:true});fs.cpSync('../dist','dist',{recursive:true});fs.copyFileSync('../assets/desktop-icon.png','icon.png')\"",
+    "dist:win": "npm run copy-dist && electron-builder --win nsis --publish never",
+    "dist:win:signed": "npm run copy-dist && electron-builder --win nsis --publish never --config electron-builder.signed.js"
   },
   "build": {
     "appId": "uk.co.aemsystems.theonemspphone.desktop",
     "productName": "The One MSP Phone",
-    "files": ["main.js", "preload.js", "icon.png", "dist/**/*"],
-    "win": { "target": "nsis", "icon": "icon.png" },
-    "nsis": { "oneClick": true, "perMachine": false },
-    "directories": { "output": "release" }
+    "files": [
+      "main.js",
+      "preload.js",
+      "dial.js",
+      "icon.png",
+      "dist/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "directories": {
+      "output": "release"
+    }
   },
   "devDependencies": {
     "electron": "^45.0.0",

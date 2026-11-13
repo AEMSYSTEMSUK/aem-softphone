@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Platform, Text, TextInput, TouchableOpacit
 import * as Contacts from 'expo-contacts/legacy';
 import * as api from '../api/client';
 import type { Contact } from '../api/types';
+import CallFromPicker from '../components/CallFromPicker';
 import { colors, s } from '../components/theme';
 import { useApp } from '../state/AppContext';
 import { useDial } from '../state/useDial';
@@ -48,6 +49,7 @@ export default function ContactsScreen() {
 
   return (
     <View style={s.screen}>
+      <CallFromPicker />
       <View style={s.pad}>
         <TextInput style={s.input} placeholder="Search name, company or number" value={q} onChangeText={setQ} autoCorrect={false} clearButtonMode="while-editing" />
       </View>

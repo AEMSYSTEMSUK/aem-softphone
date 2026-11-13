@@ -15,6 +15,10 @@ import ContactsScreen from './src/screens/ContactsScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import VoicemailScreen from './src/screens/VoicemailScreen';
 import CallScreen from './src/screens/CallScreen';
+import CallListScreen from './src/screens/CallListScreen';
+import DialHost from './src/components/DialHost';
+import { CallFromProvider } from './src/state/CallFromContext';
+import { isDesktop } from './src/desktop/bridge';
 import SetupScreen, { SETUP_DONE_KEY } from './src/screens/SetupScreen';
 import { getItem } from './src/api/storage';
 import { setupOpener } from './src/state/setupOpener';
@@ -25,11 +29,12 @@ const TABS = [
   { key: 'contacts', label: 'Contacts', C: ContactsScreen },
   { key: 'history', label: 'Recents', C: HistoryScreen },
   { key: 'voicemail', label: 'Voicemail', C: VoicemailScreen },
+  { key: 'calllist', label: 'Call list', C: CallListScreen }, // desktop only (Shell)
   { key: 'accounts', label: 'Accounts', C: AccountsScreen },
 ] as const;
 
 function Shell() {
-  const { phase, calls } = useApp();
+  const { phase, calls, newVoicemail } = useApp();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('dial');
   const [setup, setSetup] = useState(false);
   // First run after sign-in (3 Nov 2026): the setup check until the person has been through it once on this device.
@@ -41,16 +46,17 @@ function Shell() {
   if (phase === 'starting') return <View style={{ flex: 1, justifyContent: 'center' }}><ActivityIndicator color={colors.brand} /></View>;
   if (phase === 'signed_out') return <LoginScreen />;
   if (setup && !calls.length) return <SetupScreen onDone={() => setSetup(false)} />;
-  const Active = TABS.find((t) => t.key === tab)!.C;
+  const tabs = TABS.filter((t) => t.key !== 'calllist' || isDesktop());
+  const Active = tabs.find((t) => t.key === tab)!.C;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <CompanyHeader />
       <DndBar />
       <View style={{ flex: 1 }}><Active /></View>
       <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card }}>
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <TouchableOpacity key={t.key} onPress={() => setTab(t.key)} style={{ flex: 1, paddingVertical: 12, alignItems: 'center' }} accessibilityRole="tab" accessibilityState={{ selected: tab === t.key }}>
-            <Text style={{ color: tab === t.key ? colors.brand : colors.muted, fontWeight: tab === t.key ? '700' : '500', fontSize: 12 }}>{t.label}</Text>
+            <Text style={{ color: tab === t.key ? colors.brand : colors.muted, fontWeight: tab === t.key ? '700' : '500', fontSize: 12 }}>{t.label}{t.key === 'voicemail' && newVoicemail > 0 ? ` (${newVoicemail})` : ''}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -63,10 +69,13 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <SafeAreaView style={{ flex: 1, backgroundColor: colors.card }} edges={['top', 'bottom', 'left', 'right']}>
-          <Shell />
-        </SafeAreaView>
-        <StatusBar style="dark" />
+        <CallFromProvider>
+          <SafeAreaView style={{ flex: 1, backgroundColor: colors.card }} edges={['top', 'bottom', 'left', 'right']}>
+            <Shell />
+            <DialHost />
+          </SafeAreaView>
+          <StatusBar style="dark" />
+        </CallFromProvider>
       </AppProvider>
     </SafeAreaProvider>
   );
