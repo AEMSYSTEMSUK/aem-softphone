@@ -1,7 +1,7 @@
 {
   "name": "theonemsp-phone-desktop",
   "productName": "The One MSP Phone",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "private": true,
   "description": "The One MSP Phone desktop app (Electron) - loads the web export of the app",
   "main": "main.js",
@@ -18,6 +18,7 @@
       "main.js",
       "preload.js",
       "dial.js",
+      "assist/**/*",
       "icon.png",
       "dist/**/*"
     ],

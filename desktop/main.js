@@ -7,8 +7,10 @@
 // page, which sends it to the desk phone or asks first on this computer (src/components/DialHost.tsx). The hotkey is
 // Windows only for now: macOS needs its own way to press Copy and the Accessibility permission.
 // 11 Nov 2026 (0.3.3): Microsoft sign-in in a window of its own (microsoftSignIn below). 0.3.4: passkeys work there.
+// 17 Nov 2026 (0.3.7): Call assistant side panel (assist/, tray menu or Ctrl+Alt+A) - listens to the mic + this PC's
+// sound during a call and shows ONE's suggested questions; see openAssist below.
 // Still to do: keychain via safeStorage, auto-update.
-const { app, BrowserWindow, Menu, Tray, clipboard, globalShortcut, ipcMain, nativeImage, protocol, net, session, shell } = require('electron');
+const { app, BrowserWindow, Menu, Tray, clipboard, desktopCapturer, globalShortcut, ipcMain, nativeImage, protocol, net, screen, session, shell } = require('electron');
 const { execFile } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -82,6 +84,7 @@ function createTray() {
   tray.setToolTip('The One MSP Phone');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: 'Open', click: () => showWindow() },
+    { label: 'Call assistant', click: () => openAssist() },
     { type: 'separator' },
     { label: 'Quit (calls stop ringing here)', click: () => { quitting = true; app.quit(); } },
   ]));
@@ -210,15 +213,50 @@ ipcMain.on('phone:ringing', (_e, on, title) => {
   }
 });
 
+// ---------- Call assistant (17 Nov 2026) ----------
+// A narrow always-on-top window at the right of the screen. It is served from app://phone/__assist/ - the same origin as
+// the phone page - so it uses the phone app's sign-in. It hears the call through the mic (getUserMedia) and this PC's
+// sound (getDisplayMedia answered below with Windows loopback audio; the screen video is dropped straight away).
+const ASSIST_DIR = path.join(__dirname, 'assist');
+const ASSIST_URL = 'app://phone/__assist/assist.html';
+let assistWin = null;
+
+function openAssist() {
+  if (assistWin && !assistWin.isDestroyed()) { assistWin.show(); assistWin.focus(); return; }
+  const wa = screen.getPrimaryDisplay().workArea;
+  const width = 400;
+  assistWin = new BrowserWindow({
+    width, height: Math.min(900, wa.height), x: wa.x + wa.width - width, y: wa.y, minWidth: 320, title: 'Call assistant',
+    alwaysOnTop: true, icon: [path.join(__dirname, 'icon.png')].find((p) => fs.existsSync(p)),
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
+  });
+  assistWin.removeMenu();
+  assistWin.loadURL(ASSIST_URL);
+  assistWin.webContents.on('will-navigate', (e) => e.preventDefault());
+  assistWin.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  assistWin.on('closed', () => { assistWin = null; });
+}
+
+const fromAssist = (wc) => !!assistWin && !assistWin.isDestroyed() && wc === assistWin.webContents;
+
 app.whenReady().then(() => {
   protocol.handle('app', (req) => {
     const rel = decodeURIComponent(new URL(req.url).pathname).replace(/^\/+/, '') || 'index.html';
+    if (rel.startsWith('__assist/')) {
+      const f = path.join(ASSIST_DIR, rel.slice('__assist/'.length));
+      if (!f.startsWith(ASSIST_DIR + path.sep)) return new Response('Not found', { status: 404 });
+      return net.fetch(pathToFileURL(f).toString());
+    }
     const file = path.join(DIST, rel);
     if (!file.startsWith(DIST)) return new Response('Not found', { status: 404 });
     return net.fetch(pathToFileURL(file).toString());
   });
-  // Microphone + notifications only - nothing else the page asks for.
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, cb) => cb(permission === 'media' || permission === 'notifications'));
+  // Microphone + notifications only - nothing else the page asks for. The call assistant may also capture this PC's sound.
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(permission === 'media' || permission === 'notifications' || (permission === 'display-capture' && fromAssist(wc))));
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    if (!String(request.frame?.url || '').startsWith('app://phone/__assist/')) { callback({}); return; } // only the call assistant
+    desktopCapturer.getSources({ types: ['screen'] }).then((sources) => callback(sources[0] ? { video: sources[0], audio: 'loopback' } : {})).catch(() => callback({}));
+  });
   createWindow();
   createTray();
   app.on('activate', () => showWindow());
@@ -226,6 +264,7 @@ app.whenReady().then(() => {
   // person (Settings > Dial from anywhere); desktop/build/installer.nsh lists the app there.
   if (app.isPackaged) for (const scheme of ['tel', 'callto']) app.setAsDefaultProtocolClient(scheme);
   if (hotkeySupported) { hotkey = readHotkey(); hotkeyOn = registerHotkey(hotkey); }
+  try { globalShortcut.register('Control+Alt+A', openAssist); } catch { /* taken by another app - the tray menu still works */ }
   const req = dialRequestFromArgv(process.argv); // first launch, from a link
   if (req) deliverDial(req);
   else if (pendingDial) deliverDial(pendingDial);

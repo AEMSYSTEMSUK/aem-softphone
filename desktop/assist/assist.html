@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src https://one.aemtech.co.uk https://*.aemtech.co.uk http://localhost:3200; media-src 'self' blob:">
+<title>Call assistant</title>
+<link rel="stylesheet" href="assist.css">
+</head>
+<body>
+<header>
+  <div class="brand">Call assistant</div>
+  <div id="status" class="status">Not listening</div>
+</header>
+
+<!-- 1. Set up a call -->
+<section id="setup">
+  <label for="agenda">Call sheet</label>
+  <select id="agenda"><option value="">None - just suggest questions</option></select>
+
+  <label for="clientq">Customer (optional)</label>
+  <div class="picker">
+    <input id="clientq" type="search" placeholder="Type a customer name" autocomplete="off">
+    <div id="clientlist" class="list hidden"></div>
+  </div>
+  <div id="clientchosen" class="chosen hidden"></div>
+
+  <label for="context">Notes for this call (optional)</label>
+  <textarea id="context" rows="3" placeholder="e.g. chase the overdue invoices first; she is the office manager"></textarea>
+
+  <label class="check"><input id="consent" type="checkbox"> I've told everyone the call is being transcribed</label>
+  <p class="hint">Uses your microphone (you) and this PC's sound (everyone else). Works for Teams, the phone app or any call on this PC. A headset gives the best results. Audio is turned into text on AEM's own server and then deleted.</p>
+  <button id="start" class="primary" disabled>Start listening</button>
+
+  <div id="recent" class="recent"></div>
+</section>
+
+<!-- 2. During the call -->
+<section id="live" class="hidden">
+  <div class="title-row"><div id="calltitle" class="calltitle"></div><div id="timer" class="timer">0:00</div></div>
+  <div class="meters"><span>You</span><div class="meter"><div id="meterMe"></div></div><span>Them</span><div class="meter"><div id="meterThem"></div></div></div>
+
+  <h2>Ask next <button id="suggest" class="small">Suggest now</button></h2>
+  <div id="questions" class="questions"><p class="muted">Suggestions appear after the first minute of talking.</p></div>
+
+  <div id="agendaBox" class="hidden">
+    <h2>Call sheet <span id="agendaCount" class="muted"></span></h2>
+    <div id="agendaList" class="agenda"></div>
+  </div>
+
+  <h2>Heard so far</h2>
+  <ul id="facts" class="facts"><li class="muted">Nothing yet.</li></ul>
+
+  <details id="transcriptBox"><summary>Transcript</summary><div id="transcript" class="transcript"></div></details>
+
+  <div class="actions">
+    <button id="pause">Pause</button>
+    <button id="end" class="danger">End call</button>
+  </div>
+</section>
+
+<!-- 3. After the call -->
+<section id="done" class="hidden">
+  <h2 id="donetitle"></h2>
+  <pre id="summary" class="summary"></pre>
+  <div class="picker" id="savepicker">
+    <label for="saveq">Save to customer</label>
+    <input id="saveq" type="search" placeholder="Type a customer name" autocomplete="off">
+    <div id="savelist" class="list hidden"></div>
+  </div>
+  <div class="actions">
+    <button id="save" class="primary">Save to customer in ONE</button>
+    <button id="copy">Copy</button>
+  </div>
+  <div class="actions">
+    <button id="again">New call</button>
+    <button id="del" class="danger">Delete this call</button>
+  </div>
+  <p class="hint">Calls not saved to a customer are deleted after 30 days.</p>
+</section>
+
+<div id="error" class="error hidden"></div>
+<script src="assist.js"></script>
+</body>
+</html>
