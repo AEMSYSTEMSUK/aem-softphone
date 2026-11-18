@@ -9,6 +9,7 @@
 // 11 Nov 2026 (0.3.3): Microsoft sign-in in a window of its own (microsoftSignIn below). 0.3.4: passkeys work there.
 // 17 Nov 2026 (0.3.7): Call assistant side panel (assist/, tray menu or Ctrl+Alt+A) - listens to the mic + this PC's
 // sound during a call and shows ONE's suggested questions; see openAssist below.
+// 18 Nov 2026 (0.3.8): call assistant Copy buttons work (clipboard permission) and the end screen shows the transcript.
 // Still to do: keychain via safeStorage, auto-update.
 const { app, BrowserWindow, Menu, Tray, clipboard, desktopCapturer, globalShortcut, ipcMain, nativeImage, protocol, net, screen, session, shell } = require('electron');
 const { execFile } = require('node:child_process');
@@ -252,7 +253,8 @@ app.whenReady().then(() => {
     return net.fetch(pathToFileURL(file).toString());
   });
   // Microphone + notifications only - nothing else the page asks for. The call assistant may also capture this PC's sound.
-  session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(permission === 'media' || permission === 'notifications' || (permission === 'display-capture' && fromAssist(wc))));
+  // 18 Nov: the call assistant may also write to the clipboard (its Copy buttons failed silently without it).
+  session.defaultSession.setPermissionRequestHandler((wc, permission, cb) => cb(permission === 'media' || permission === 'notifications' || ((permission === 'display-capture' || permission === 'clipboard-sanitized-write') && fromAssist(wc))));
   session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
     if (!String(request.frame?.url || '').startsWith('app://phone/__assist/')) { callback({}); return; } // only the call assistant
     desktopCapturer.getSources({ types: ['screen'] }).then((sources) => callback(sources[0] ? { video: sources[0], audio: 'loopback' } : {})).catch(() => callback({}));

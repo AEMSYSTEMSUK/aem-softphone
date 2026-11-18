@@ -199,6 +199,26 @@ function flush() {
 }
 
 // ---------- live screen ----------
+const stamp = (t) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+const transcriptHtml = (segs) => (segs || []).map((g) => `<div class="${g.who}">${stamp(g.t)} <b>${g.who === 'me' ? 'You' : 'Them'}:</b> ${esc(g.text)}</div>`).join('') || '<span class="muted">Nothing yet.</span>';
+const transcriptPlain = (segs) => (segs || []).map((g) => `[${stamp(g.t)}] ${g.who === 'me' ? 'You' : 'Them'}: ${g.text}`).join('\n');
+
+// navigator.clipboard needs the clipboard permission (main.js grants it to this window); the textarea copy is the fallback.
+async function copyText(text, btn) {
+  const label = btn.textContent;
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch { ok = false; }
+    ta.remove();
+  }
+  if (!ok) { showError('Could not copy - select the text and press Ctrl+C'); return; }
+  btn.textContent = 'Copied';
+  setTimeout(() => { btn.textContent = label; }, 1500);
+}
+
 function render(s) {
   session = s;
   $('calltitle').textContent = s.title + (s.clientName && !s.title.includes(s.clientName) ? ` - ${s.clientName}` : '');
@@ -221,7 +241,7 @@ function render(s) {
     $('agendaCount').textContent = `${answered} of ${s.agenda.items.length} answered`;
   } else $('agendaBox').classList.add('hidden');
   const first = (s.title || '').split(' ')[0];
-  $('transcript').innerHTML = s.segments.map((g) => `<div class="${g.who}">${Math.floor(g.t / 60)}:${String(g.t % 60).padStart(2, '0')} <b>${g.who === 'me' ? 'You' : 'Them'}:</b> ${esc(g.text)}</div>`).join('') || '<span class="muted">Nothing yet.</span>';
+  $('transcript').innerHTML = transcriptHtml(s.segments);
   void first;
 }
 
@@ -285,6 +305,7 @@ function showDone() {
   view('done');
   $('donetitle').textContent = session.title;
   $('summary').textContent = session.summary || '';
+  $('doneTranscript').innerHTML = transcriptHtml(session.segments);
   saveClient = session.clientId ? { id: session.clientId, name: session.clientName } : null;
   $('saveq').value = saveClient ? saveClient.name : '';
   $('save').textContent = session.noteId ? 'Saved - save again' : 'Save to customer in ONE';
@@ -294,7 +315,8 @@ $('save').addEventListener('click', async () => {
   if (!saveClient) { showError('Pick the customer first'); return; }
   try { session = await api(`/assist/sessions/${session.id}/save`, { method: 'POST', body: JSON.stringify({ clientId: saveClient.id }) }); $('save').textContent = 'Saved to ' + saveClient.name; } catch (e) { showError(e.message); }
 });
-$('copy').addEventListener('click', () => { navigator.clipboard.writeText(session.summary || '').then(() => { $('copy').textContent = 'Copied'; setTimeout(() => { $('copy').textContent = 'Copy'; }, 1500); }); });
+$('copy').addEventListener('click', () => copyText(session.summary || '', $('copy')));
+$('copyT').addEventListener('click', () => copyText(transcriptPlain(session.segments), $('copyT')));
 $('again').addEventListener('click', () => { session = null; setClient(null); $('context').value = ''; $('consent').checked = false; $('start').disabled = true; loadSetup(); });
 $('del').addEventListener('click', async () => {
   if (!confirm('Delete this call and its transcript?')) return;
