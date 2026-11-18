@@ -77,3 +77,5 @@ details summary { cursor:pointer; color:var(--muted); margin-top:14px; }
 @media (min-width: 900px) {
   #live:not(.hidden):has(#agendaBox.hidden) { grid-template-columns:minmax(0,1fr); grid-template-rows:none; grid-template-areas:"title" "meters" "ask" "heard" "trans" "actions"; max-width:760px; margin:0 auto; }
 }
+
+.saveok { margin:8px 0 0; padding:8px 10px; border-radius:8px; background:rgba(16,185,129,.12); color:#059669; font-size:13px; font-weight:600; }

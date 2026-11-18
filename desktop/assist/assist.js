@@ -310,11 +310,22 @@ function showDone() {
   saveClient = session.clientId ? { id: session.clientId, name: session.clientName } : null;
   $('saveq').value = saveClient ? saveClient.name : '';
   $('save').textContent = session.noteId ? 'Saved - save again' : 'Save to customer in ONE';
+  $('saveok').classList.add('hidden');
 }
 picker('saveq', 'savelist', (c) => { saveClient = c; $('saveq').value = c.name; });
 $('save').addEventListener('click', async () => {
   if (!saveClient) { showError('Pick the customer first'); return; }
-  try { session = await api(`/assist/sessions/${session.id}/save`, { method: 'POST', body: JSON.stringify({ clientId: saveClient.id }) }); $('save').textContent = 'Saved to ' + saveClient.name; } catch (e) { showError(e.message); }
+  // 18 Nov 2026: the label used to stay the same on every click, so a working save looked like it did nothing.
+  const btn = $('save'), ok = $('saveok');
+  btn.disabled = true; btn.textContent = 'Saving...'; ok.classList.add('hidden');
+  try {
+    session = await api(`/assist/sessions/${session.id}/save`, { method: 'POST', body: JSON.stringify({ clientId: saveClient.id }) });
+    const at = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    ok.textContent = `✓ Saved to ${saveClient.name} at ${at} - it's a note on the customer in ONE. Saving again updates the same note.`;
+    ok.classList.remove('hidden');
+    btn.textContent = 'Saved - save again';
+  } catch (e) { btn.textContent = session.noteId ? 'Saved - save again' : 'Save to customer in ONE'; showError(e.message); }
+  finally { btn.disabled = false; }
 });
 $('copy').addEventListener('click', () => copyText(session.summary || '', $('copy')));
 $('copyT').addEventListener('click', () => copyText(transcriptPlain(session.segments), $('copyT')));
