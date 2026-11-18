@@ -230,15 +230,16 @@ function render(s) {
   if (s.agenda?.items?.length) {
     $('agendaBox').classList.remove('hidden');
     const st = L?.agenda || {};
-    let sec = null, html = '', answered = 0;
+    let sec = null, html = '', answered = 0, asked = 0;
     for (const it of s.agenda.items) {
       if (it.section !== sec) { sec = it.section; if (sec) html += `<div class="sec">${esc(sec)}</div>`; }
       const a = st[String(it.n)];
       if (a?.status === 'answered') answered++;
-      html += `<div class="it ${a ? a.status : ''}"><span class="mark">${a?.status === 'answered' ? '✓' : a?.status === 'partly' ? '◐' : '○'}</span><span>${esc(it.text)}${a?.answer ? `<span class="ans">${esc(a.answer)}</span>` : ''}</span></div>`;
+      if (a) asked++;
+      html += `<div class="it ${a ? a.status : ''}"><span class="mark">${a?.status === 'answered' ? '✓' : a?.status === 'partly' ? '◐' : a?.status === 'asked' ? '●' : '○'}</span><span>${esc(it.text)}${a?.answer ? `<span class="ans">${esc(a.answer)}</span>` : ''}</span></div>`;
     }
     $('agendaList').innerHTML = html;
-    $('agendaCount').textContent = `${answered} of ${s.agenda.items.length} answered`;
+    $('agendaCount').textContent = `${asked} of ${s.agenda.items.length} asked, ${answered} answered`;
   } else $('agendaBox').classList.add('hidden');
   const first = (s.title || '').split(' ')[0];
   $('transcript').innerHTML = transcriptHtml(s.segments);

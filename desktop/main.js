@@ -10,6 +10,7 @@
 // 17 Nov 2026 (0.3.7): Call assistant side panel (assist/, tray menu or Ctrl+Alt+A) - listens to the mic + this PC's
 // sound during a call and shows ONE's suggested questions; see openAssist below.
 // 18 Nov 2026 (0.3.8): call assistant Copy buttons work (clipboard permission) and the end screen shows the transcript.
+// 0.3.9: maximise the call assistant for a full-page view (call sheet on the left); items show asked / partly / answered.
 // Still to do: keychain via safeStorage, auto-update.
 const { app, BrowserWindow, Menu, Tray, clipboard, desktopCapturer, globalShortcut, ipcMain, nativeImage, protocol, net, screen, session, shell } = require('electron');
 const { execFile } = require('node:child_process');

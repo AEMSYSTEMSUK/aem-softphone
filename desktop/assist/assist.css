@@ -53,3 +53,27 @@ details summary { cursor:pointer; color:var(--muted); margin-top:14px; }
 .actions button { flex:1; }
 .summary { white-space:pre-wrap; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px; font:13px/1.45 "Segoe UI", system-ui, sans-serif; max-height:55vh; overflow:auto; }
 .error { position:fixed; left:10px; right:10px; bottom:10px; background:var(--bad); color:#fff; padding:10px; border-radius:8px; font-size:13px; }
+
+/* 18 Nov 2026: asked (no answer yet) */
+.agenda .it.asked .mark { color:var(--teal); }
+/* Full page: maximise the window (or drag it to a second screen) and the call sheet takes the left side. */
+@media (min-width: 900px) {
+  body { font-size:15px; }
+  #live:not(.hidden) { display:grid; grid-template-columns:minmax(0,3fr) minmax(320px,2fr); column-gap:28px; align-items:start;
+    grid-template-rows:auto auto auto auto auto auto 1fr;
+    grid-template-areas:"title title" "meters meters" "agenda ask" "agenda heard" "agenda trans" "agenda actions" "agenda ."; }
+  #live .title-row { grid-area:title; }
+  #live .meters { grid-area:meters; }
+  #live .askgrp { grid-area:ask; }
+  #live .heardgrp { grid-area:heard; }
+  #live #transcriptBox { grid-area:trans; }
+  #live .actions { grid-area:actions; }
+  #agendaBox { grid-area:agenda; max-height:calc(100vh - 130px); overflow:auto; padding-right:6px; }
+  .agenda .it { font-size:15px; padding:7px 0; }
+  .agenda .sec { font-size:13px; margin-top:16px; }
+  .calltitle { font-size:18px; }
+  #setup, #done { max-width:760px; margin:0 auto; }
+}
+@media (min-width: 900px) {
+  #live:not(.hidden):has(#agendaBox.hidden) { grid-template-columns:minmax(0,1fr); grid-template-rows:none; grid-template-areas:"title" "meters" "ask" "heard" "trans" "actions"; max-width:760px; margin:0 auto; }
+}
