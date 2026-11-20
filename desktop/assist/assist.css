@@ -1,0 +1,81 @@
+:root { --bg:#f7f7f9; --card:#fff; --fg:#1d1d24; --muted:#6b6b78; --line:#e3e3ea; --brand:#5a2d82; --teal:#2e9599; --ok:#1f8a4c; --part:#b7791f; --bad:#c0392b; }
+@media (prefers-color-scheme: dark) { :root { --bg:#16161b; --card:#202028; --fg:#ececf1; --muted:#9a9aa8; --line:#33333d; } }
+* { box-sizing: border-box; }
+body { margin:0; font: 14px/1.4 "Segoe UI", system-ui, sans-serif; background:var(--bg); color:var(--fg); }
+header { display:flex; justify-content:space-between; align-items:center; padding:10px 14px; background:var(--brand); color:#fff; position:sticky; top:0; z-index:2; }
+.brand { font-weight:600; }
+.status { font-size:12px; opacity:.9; }
+.status.on::before { content:""; display:inline-block; width:8px; height:8px; border-radius:50%; background:#ff5c5c; margin-right:6px; animation:pulse 1.4s infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
+section { padding:12px 14px 18px; }
+label { display:block; font-weight:600; margin:12px 0 4px; font-size:13px; }
+label.check { font-weight:400; display:flex; gap:8px; align-items:flex-start; margin-top:14px; }
+select, input[type=search], textarea { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:var(--card); color:var(--fg); font:inherit; }
+textarea { resize:vertical; }
+button { font:inherit; padding:8px 12px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--fg); cursor:pointer; }
+button.primary { background:var(--brand); border-color:var(--brand); color:#fff; width:100%; margin-top:10px; }
+button.danger { color:var(--bad); }
+button.small { padding:2px 8px; font-size:12px; float:right; }
+button:disabled { opacity:.5; cursor:default; }
+.hint, .muted { color:var(--muted); font-size:12px; }
+.hidden { display:none !important; }
+.picker { position:relative; }
+.list { position:absolute; left:0; right:0; top:100%; background:var(--card); border:1px solid var(--line); border-radius:8px; max-height:220px; overflow:auto; z-index:3; }
+.list div { padding:7px 10px; cursor:pointer; }
+.list div:hover { background:var(--bg); }
+.chosen { margin-top:6px; padding:6px 10px; background:var(--card); border:1px solid var(--line); border-radius:8px; display:flex; justify-content:space-between; }
+.recent { margin-top:18px; }
+.recent div { padding:6px 0; border-bottom:1px solid var(--line); cursor:pointer; font-size:13px; }
+.title-row { display:flex; justify-content:space-between; align-items:baseline; }
+.calltitle { font-weight:600; font-size:15px; }
+.timer { color:var(--muted); font-variant-numeric:tabular-nums; }
+.meters { display:grid; grid-template-columns:auto 1fr auto 1fr; gap:6px; align-items:center; font-size:11px; color:var(--muted); margin:8px 0 4px; }
+.meter { height:6px; background:var(--line); border-radius:3px; overflow:hidden; }
+.meter div { height:100%; width:0; background:var(--teal); transition:width .15s; }
+h2 { font-size:13px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); margin:16px 0 6px; }
+.questions .q { background:var(--card); border:1px solid var(--line); border-left:4px solid var(--teal); border-radius:8px; padding:8px 10px; margin-bottom:8px; }
+.questions .q b { display:block; font-weight:600; }
+.questions .q span { font-size:12px; color:var(--muted); }
+.agenda .sec { font-size:12px; font-weight:600; color:var(--muted); margin:10px 0 2px; }
+.agenda .it { display:flex; gap:8px; padding:4px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.agenda .it .mark { width:16px; flex:none; text-align:center; }
+.agenda .it.answered { color:var(--muted); }
+.agenda .it.answered .mark { color:var(--ok); }
+.agenda .it.partly .mark { color:var(--part); }
+.agenda .it .ans { display:block; font-size:12px; color:var(--ok); }
+.agenda .it.partly .ans { color:var(--part); }
+.facts { margin:0; padding-left:18px; }
+.facts li { margin-bottom:3px; }
+.transcript { font-size:12px; max-height:260px; overflow:auto; white-space:pre-wrap; }
+.transcript .me { color:var(--brand); }
+details summary { cursor:pointer; color:var(--muted); margin-top:14px; }
+.actions { display:flex; gap:8px; margin-top:14px; }
+.actions button { flex:1; }
+.summary { white-space:pre-wrap; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px; font:13px/1.45 "Segoe UI", system-ui, sans-serif; max-height:55vh; overflow:auto; }
+.error { position:fixed; left:10px; right:10px; bottom:10px; background:var(--bad); color:#fff; padding:10px; border-radius:8px; font-size:13px; }
+
+/* 18 Nov 2026: asked (no answer yet) */
+.agenda .it.asked .mark { color:var(--teal); }
+/* Full page: maximise the window (or drag it to a second screen) and the call sheet takes the left side. */
+@media (min-width: 900px) {
+  body { font-size:15px; }
+  #live:not(.hidden) { display:grid; grid-template-columns:minmax(0,3fr) minmax(320px,2fr); column-gap:28px; align-items:start;
+    grid-template-rows:auto auto auto auto auto auto 1fr;
+    grid-template-areas:"title title" "meters meters" "agenda ask" "agenda heard" "agenda trans" "agenda actions" "agenda ."; }
+  #live .title-row { grid-area:title; }
+  #live .meters { grid-area:meters; }
+  #live .askgrp { grid-area:ask; }
+  #live .heardgrp { grid-area:heard; }
+  #live #transcriptBox { grid-area:trans; }
+  #live .actions { grid-area:actions; }
+  #agendaBox { grid-area:agenda; max-height:calc(100vh - 130px); overflow:auto; padding-right:6px; }
+  .agenda .it { font-size:15px; padding:7px 0; }
+  .agenda .sec { font-size:13px; margin-top:16px; }
+  .calltitle { font-size:18px; }
+  #setup, #done { max-width:760px; margin:0 auto; }
+}
+@media (min-width: 900px) {
+  #live:not(.hidden):has(#agendaBox.hidden) { grid-template-columns:minmax(0,1fr); grid-template-rows:none; grid-template-areas:"title" "meters" "ask" "heard" "trans" "actions"; max-width:760px; margin:0 auto; }
+}
+
+.saveok { margin:8px 0 0; padding:8px 10px; border-radius:8px; background:rgba(16,185,129,.12); color:#059669; font-size:13px; font-weight:600; }
